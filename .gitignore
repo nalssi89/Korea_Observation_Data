@@ -1,0 +1,26 @@
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies and tool caches
+node_modules/
+.npm/
+.cache/
+
+# Raw and intermediate data are reproducible and too large for normal Git commits.
+data/raw/
+data/chart_work/
+
+# Superseded or temporary output folders
+data/output/final_mainland/
+data/output/20260422*/
+tmp/
+
+# Local OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.tmp
+*.bak
