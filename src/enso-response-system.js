@@ -8,6 +8,7 @@ const COMBINED_DOCUMENT_ORDER = [
   "response_system_index.md",
   "evidence_registry.md",
   "question_answer_matrix.md",
+  "enso_public_communication_guide.md",
   "2026_summer_enso_korea_objective_response.md",
   "monthly_effect_table.md",
   "seasonal_effect_table.md",
@@ -982,6 +983,116 @@ function buildChangmaTyphoonReference() {
   ].join("\n");
 }
 
+function buildPublicCommunicationGuide() {
+  const statusRows = [
+    {
+      situation: "한 달 또는 주별 SST가 +0.5°C 부근",
+      wording: "엘니뇨 쪽으로 기울고 있다",
+      avoid: "엘니뇨 발생",
+    },
+    {
+      situation: "3개월 평균이 +0.5°C 이상이나 지속성 미확인",
+      wording: "엘니뇨 발달 가능성이 커졌다",
+      avoid: "엘니뇨 확정",
+    },
+    {
+      situation: "3개월 평균 +0.5°C 이상이 이어지는 중",
+      wording: "엘니뇨 감시 또는 발달 단계",
+      avoid: "이미 강한 엘니뇨",
+    },
+    {
+      situation: "ONI 기준 episode 충족",
+      wording: "공식 기준상 엘니뇨 상태",
+      avoid: "단순 고수온",
+    },
+    {
+      situation: "해수온은 높지만 대기 반응 약함",
+      wording: "해양 신호는 있으나 대기 결합은 약하다",
+      avoid: "엘니뇨 영향이 확실하다",
+    },
+  ];
+
+  const responseRows = [
+    {
+      question: "지금 엘니뇨인가요?",
+      answer:
+        "공식 ONI 기준으로는 아직 확정 전인지, 이미 기준을 충족했는지 먼저 구분합니다. 확정 전이면 '엘니뇨 발달 가능성을 감시 중'이라고 답합니다.",
+    },
+    {
+      question: "왜 바로 엘니뇨라고 말하지 않나요?",
+      answer:
+        "엘니뇨는 한 달 해수온만으로 선언하지 않고, 3개월 이동평균과 지속성을 확인하기 때문입니다. 공식 판정은 원래 사후 확인 성격이 있습니다.",
+    },
+    {
+      question: "그럼 대응이 늦어지는 것 아닌가요?",
+      answer:
+        "공식 선언은 늦게 확정되지만 감시는 늦게 시작하지 않습니다. 해수온 상승, 대기 반응, 무역풍, 대류, 계절모델, 과거 유사해를 함께 보며 발달 가능성은 미리 설명합니다.",
+    },
+    {
+      question: "한반도 영향은 어떻게 말하나요?",
+      answer:
+        "엘니뇨 선언 여부 하나로 기온, 강수, 태풍을 단정하지 않습니다. ONI 발달 신호와 별도로 북태평양고기압, 장마전선, 저기압, 태풍 경로를 함께 설명합니다.",
+    },
+  ];
+
+  return [
+    "# 엘니뇨 공식 판정 지연과 대국민 소통 가이드",
+    "",
+    "## 핵심 메시지",
+    "",
+    "> 공식 선언은 늦고, 감시는 빠르게 한다.",
+    "",
+    "엘니뇨는 한 달 해수온이 높다고 바로 선언하지 않습니다. Niño3.4 해역의 3개월 이동평균이 +0.5°C 이상이고, 이 상태가 여러 계절 동안 지속되는지를 확인해야 합니다. 따라서 공식 ONI 판정은 원래 사후 확인 성격이 있습니다.",
+    "",
+    "다만 공식 판정이 늦다고 해서 감시를 늦게 시작하는 것은 아닙니다. 해수온 상승, 대기 반응, 무역풍, 대류, 계절모델, 과거 유사해를 함께 보면서 발달 가능성과 영향 가능성은 미리 설명합니다.",
+    "",
+    "## 답변 원칙",
+    "",
+    "1. 공식 판정과 조기 감시를 분리한다.",
+    "2. 엘니뇨 상태와 한반도 영향을 분리한다.",
+    "3. 예/아니오 단답보다 현재 단계와 불확실성을 함께 말한다.",
+    "4. 공식 전망 확률이 아니라 관측 신호와 관측 기반 유사해를 근거로 설명한다.",
+    "",
+    "## 상태별 표현",
+    "",
+    markdownTable(statusRows, [
+      { key: "situation", label: "상황" },
+      { key: "wording", label: "권장 표현" },
+      { key: "avoid", label: "피해야 할 표현" },
+    ]),
+    "",
+    "## 질문별 답변법",
+    "",
+    markdownTable(responseRows, [
+      { key: "question", label: "질문" },
+      { key: "answer", label: "답변 방향" },
+    ]),
+    "",
+    "## 언론 대응 문구",
+    "",
+    "### 짧은 답변",
+    "",
+    "> 공식 기준으로는 아직 엘니뇨 확정 여부를 지속성까지 확인해야 합니다. 다만 해수온이 엘니뇨 방향으로 움직이고 있어 발달 가능성은 감시 단계입니다. 한반도 영향은 엘니뇨 여부 하나로 단정하지 않고, 북태평양고기압, 장마전선, 태풍 경로 등과 함께 판단해야 합니다.",
+    "",
+    "### 엄밀한 답변",
+    "",
+    "> 엘니뇨는 한 달 해수온이 높다고 바로 선언하지 않고, Niño3.4 해역의 3개월 이동평균이 +0.5°C 이상으로 여러 계절 지속되는지를 봅니다. 그래서 공식 판정은 다소 늦게 나올 수 있습니다. 현재 설명은 '엘니뇨 확정'보다 '엘니뇨 발달 가능성이 높아지는 단계'가 더 정확합니다.",
+    "",
+    "## 실무 답변 틀",
+    "",
+    "질문자가 '엘니뇨냐 아니냐'라고 물으면 다음 순서로 답합니다.",
+    "",
+    "1. 공식 ONI 기준 충족 여부를 먼저 말한다.",
+    "2. 아직 확정 전이면 발달 가능성 감시 단계라고 말한다.",
+    "3. 한반도 영향은 별도 판단이라고 분리한다.",
+    "4. 기온·강수·태풍은 지역 순환과 관측 유사해를 함께 보겠다고 설명한다.",
+    "",
+    "## 표준 답변",
+    "",
+    "> 공식 기준으로는 아직 확정 전입니다. 하지만 엘니뇨 쪽으로 발달하는 신호는 감시 중입니다. 따라서 현재 단계의 정확한 표현은 '엘니뇨 발생'이 아니라 '엘니뇨 발달 가능성'입니다. 한반도 영향은 공식 엘니뇨 선언 여부보다 실제 해수온 변화, 대기 반응, 장마전선, 북태평양고기압, 태풍 경로를 함께 보겠습니다.",
+  ].join("\n");
+}
+
 function buildResponseSystemIndex() {
   const rows = [
     {
@@ -1018,6 +1129,11 @@ function buildResponseSystemIndex() {
       file: "question_answer_matrix.md",
       purpose: "실제 질문별 짧은 답, 근거, 반대근거, 실무 문구",
       use: "대외·내부 Q&A 초안",
+    },
+    {
+      file: "enso_public_communication_guide.md",
+      purpose: "공식 엘니뇨 판정 지연 상황에서 언론·대국민 질문에 답하는 문구와 단계 기준",
+      use: "엘니뇨냐 아니냐 질문 대응",
     },
     {
       file: "2026_summer_enso_korea_objective_response.md",
@@ -1071,6 +1187,7 @@ export function buildResponseDocuments({
     "analog_year_cards.md": `${buildAnalogYearCards(analogRows)}\n`,
     "changma_typhoon_reference.md": `${buildChangmaTyphoonReference()}\n`,
     "question_answer_matrix.md": `${buildQuestionAnswerMatrix(monthRows, seasonRows)}\n`,
+    "enso_public_communication_guide.md": `${buildPublicCommunicationGuide()}\n`,
     "2026_summer_enso_korea_objective_response.md": `${buildExampleScenarioResponse(
       monthRows,
       seasonRows,
@@ -1097,6 +1214,10 @@ export function buildCombinedResponseSystem(documents) {
     {
       situation: "장마·태풍 질문에 어떻게 답할 것인가?",
       section: "장마·태풍 별도 해석 참고표",
+    },
+    {
+      situation: "지금 엘니뇨냐는 질문에 어떻게 답할 것인가?",
+      section: "엘니뇨 공식 판정 지연과 대국민 소통 가이드",
     },
   ];
 

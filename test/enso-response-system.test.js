@@ -192,6 +192,15 @@ test("response system includes Changma and typhoon as separate modifier layer", 
   assert.match(documents["response_system_index.md"], /changma_typhoon_reference\.md/u);
 });
 
+test("response system includes public communication guidance for delayed ENSO confirmation", () => {
+  const documents = buildResponseDocuments({ monthRows, seasonRows, analogRows });
+
+  assert.match(documents["enso_public_communication_guide.md"], /공식 선언은 늦고, 감시는 빠르게 한다/u);
+  assert.match(documents["enso_public_communication_guide.md"], /엘니뇨 발달 가능성/u);
+  assert.match(documents["enso_public_communication_guide.md"], /피해야 할 표현/u);
+  assert.match(documents["response_system_index.md"], /enso_public_communication_guide\.md/u);
+});
+
 test("buildResponseSystem writes the expected markdown artifacts", async () => {
   const directory = await mkdtemp(join(tmpdir(), "kod-enso-response-"));
   await writeCsv(join(directory, "data/output/final/enso_analysis/enso_month_phase_summary.md"), monthRows);
@@ -203,7 +212,7 @@ test("buildResponseSystem writes the expected markdown artifacts", async () => {
   await writeCsv(join(directory, "data/output/final/elnino_summer_2026/analog_year_metrics.csv"), analogRows);
 
   const result = await buildResponseSystem({ baseDir: directory });
-  assert.equal(result.files.length, 9);
+  assert.equal(result.files.length, 10);
 
   const registry = await readFile(
     join(directory, "data/output/final/enso_response_system/evidence_registry.md"),
@@ -217,6 +226,7 @@ test("buildResponseSystem writes the expected markdown artifacts", async () => {
   assert.match(combined, /ONI 기준 월별 기온·강수 영향표/u);
   assert.match(combined, /RONI는 보조 민감도 확인/u);
   assert.match(combined, /장마·태풍 별도 해석 참고표/u);
+  assert.match(combined, /엘니뇨 공식 판정 지연과 대국민 소통 가이드/u);
   assert.match(combined, /예시 답변: 2026년 4월 현재 엘니뇨 발달 가능성과 한반도 영향/u);
   assert.match(combined, /ONI 발달해 전체: JJA 기온/u);
   assert.match(combined, /가을은 엘니뇨 지속 시 소우 쪽 신호/u);

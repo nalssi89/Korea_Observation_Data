@@ -69,6 +69,7 @@ The detailed source tables are also written to:
 - `data/output/final/enso_response_system/analog_year_cards.md`
 - `data/output/final/enso_response_system/changma_typhoon_reference.md`
 - `data/output/final/enso_response_system/question_answer_matrix.md`
+- `data/output/final/enso_response_system/enso_public_communication_guide.md`
 - `data/output/final/elnino_summer_2026/analog_year_metrics_manifest.md`
 
 `build:enso-response` regenerates the ONI association summaries, the analog
