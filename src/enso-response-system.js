@@ -9,6 +9,7 @@ const COMBINED_DOCUMENT_ORDER = [
   "evidence_registry.md",
   "question_answer_matrix.md",
   "enso_public_communication_guide.md",
+  "decision_criteria_framework.md",
   "2026_summer_enso_korea_objective_response.md",
   "monthly_effect_table.md",
   "seasonal_effect_table.md",
@@ -1213,7 +1214,7 @@ function buildPublicCommunicationGuide() {
     "",
     "> 공식 선언은 늦고, 감시는 빠르게 한다.",
     "",
-    "엘니뇨는 한 달 해수온이 높다고 바로 선언하지 않습니다. Niño3.4 해역의 3개월 이동평균이 +0.5°C 이상이고, 이 상태가 여러 계절 동안 지속되는지를 확인해야 합니다. 따라서 공식 ONI 판정은 원래 사후 확인 성격이 있습니다.",
+    "엘니뇨는 한 달 해수온이 높다고 바로 선언하지 않습니다. Niño3.4 해역의 ONI 3개월 겹침 계절평균이 +0.5°C 이상이고, 이 상태가 5개 이상 연속되는지를 확인해야 합니다. 따라서 공식 ONI 판정은 원래 사후 확인 성격이 있습니다.",
     "",
     "다만 공식 판정이 늦다고 해서 감시를 늦게 시작하는 것은 아닙니다. 해수온 상승, 대기 반응, 무역풍, 대류, 계절모델, 과거 유사해를 함께 보면서 발달 가능성과 영향 가능성은 미리 설명합니다.",
     "",
@@ -1247,7 +1248,7 @@ function buildPublicCommunicationGuide() {
     "",
     "### 엄밀한 답변",
     "",
-    "> 엘니뇨는 한 달 해수온이 높다고 바로 선언하지 않고, Niño3.4 해역의 3개월 이동평균이 +0.5°C 이상으로 여러 계절 지속되는지를 봅니다. 그래서 공식 판정은 다소 늦게 나올 수 있습니다. 현재 설명은 '엘니뇨 확정'보다 '엘니뇨 발달 가능성이 높아지는 단계'가 더 정확합니다.",
+    "> 엘니뇨는 한 달 해수온이 높다고 바로 선언하지 않고, Niño3.4 해역의 ONI 3개월 겹침 계절평균이 +0.5°C 이상으로 5개 이상 연속되는지를 봅니다. 그래서 공식 판정은 다소 늦게 나올 수 있습니다. 현재 설명은 '엘니뇨 확정'보다 '엘니뇨 발달 가능성이 높아지는 단계'가 더 정확합니다.",
     "",
     "## 실무 답변 틀",
     "",
@@ -1261,6 +1262,130 @@ function buildPublicCommunicationGuide() {
     "## 표준 답변",
     "",
     "> 공식 기준으로는 아직 확정 전입니다. 하지만 엘니뇨 쪽으로 발달하는 신호는 감시 중입니다. 따라서 현재 단계의 정확한 표현은 '엘니뇨 발생'이 아니라 '엘니뇨 발달 가능성'입니다. 한반도 영향은 공식 엘니뇨 선언 여부보다 실제 해수온 변화, 대기 반응, 장마전선, 북태평양고기압, 태풍 경로를 함께 보겠습니다.",
+  ].join("\n");
+}
+
+function buildDecisionCriteriaFramework() {
+  const layerRows = [
+    {
+      layer: "1. ENSO 상태 판정",
+      rule:
+        "ONI 3개월 겹침 계절평균이 +0.5°C 이상이면 warm, -0.5°C 이하이면 cold 후보로 둔다. 같은 부호가 5개 이상 연속될 때 공식 episode로 확정한다.",
+      output:
+        "엘니뇨/라니냐 확정, 감시 단계, 발달 가능성을 구분한다. RONI는 보조 민감도 확인으로만 쓴다.",
+    },
+    {
+      layer: "2. 조기 소통",
+      rule:
+        "5개 연속 계절을 기다리면 사후 확인이 되므로, 지속성 미확인 단계에서는 '발달 가능성' 또는 '감시 단계'로 표현한다.",
+      output:
+        "확정 전에는 '발생'이나 '확정'을 쓰지 않고, 관측 신호와 불확실성을 함께 말한다.",
+    },
+    {
+      layer: "3. 한반도 영향 판단",
+      rule:
+        "영향 질문은 달력년이 아니라 질문 대상 월·계절 자체로 판정한다. 여름은 JJA, 겨울은 DJF 계절연도 표를 우선 사용한다.",
+      output:
+        "1987년 엘니뇨, 2022년 라니냐처럼 전년부터 이어진 episode도 해당 JJA/DJF가 ONI phase이면 포함한다.",
+    },
+    {
+      layer: "4. 발달기·소멸기 라벨",
+      rule:
+        "발달기와 소멸기는 공식 episode 안에서만 나누며, 엘니뇨는 첫 ONI 최댓값까지, 라니냐는 첫 ONI 최솟값까지를 발달기로 둔다.",
+      output:
+        "발달/소멸 라벨은 해당 월·계절에 붙인다. 그해 전체를 발달기 또는 소멸기로 단정하지 않는다.",
+    },
+    {
+      layer: "5. 달력년 표현",
+      rule:
+        "달력년은 대외 설명용 약칭으로만 사용한다. 예: '2022년은 라니냐 지속해', '1987년은 엘니뇨 지속해'.",
+      output:
+        "달력년 약칭을 기온·강수·태풍 영향의 직접 근거로 쓰지 않는다.",
+    },
+  ];
+
+  const questionRows = [
+    {
+      question: "지금 엘니뇨/라니냐인가?",
+      first: "ONI 3개월 겹침 계절평균과 5개 연속 episode 여부",
+      second: "확정 전이면 감시 단계 또는 발달 가능성으로 표현",
+    },
+    {
+      question: "올여름/이번 겨울 영향은?",
+      first: "active_season_year_table.md",
+      second: "monthly_effect_table.md와 seasonal_effect_table.md로 월별·계절별 반대사례 확인",
+    },
+    {
+      question: "새로 발달하는 해의 유사해는?",
+      first: "analog_year_cards.md의 ONI 발달해 전체",
+      second: "MJJ-ASO 여름 전환형은 여름 중 전환 질문에만 부분집합으로 사용",
+    },
+    {
+      question: "발달기와 소멸기 영향은?",
+      first: "lifecycle_effect_table.md",
+      second: "표본이 작으므로 월별·계절별 ONI 표를 반드시 함께 확인",
+    },
+    {
+      question: "장마·태풍은?",
+      first: "changma_typhoon_reference.md",
+      second: "ONI 직접효과로 단정하지 않고 정체전선, 북태평양고기압, 경로를 분리",
+    },
+  ];
+
+  const wordingRows = [
+    {
+      situation: "3개월 ONI 기준은 넘었지만 지속성 미확인",
+      wording: "엘니뇨/라니냐 발달 가능성이 커졌고 감시 중이다.",
+      avoid: "엘니뇨/라니냐가 발생했다.",
+    },
+    {
+      situation: "5개 연속 계절을 충족",
+      wording: "공식 ONI 기준상 엘니뇨/라니냐 상태다.",
+      avoid: "한반도 영향까지 확정됐다.",
+    },
+    {
+      situation: "여름·겨울 영향 질문",
+      wording: "해당 JJA/DJF 계절이 ONI phase였던 과거 계절연도를 우선 비교한다.",
+      avoid: "episode 시작연도만으로 영향 표본을 고른다.",
+    },
+    {
+      situation: "발달기·소멸기 질문",
+      wording: "해당 계절은 발달기/소멸기 표본에 속한다.",
+      avoid: "그해 전체가 발달기/소멸기다.",
+    },
+  ];
+
+  return [
+    "# ENSO 판단 기준 계층화",
+    "",
+    "- 이 문서는 '엘니뇨/라니냐인가'라는 상태 질문과 '한반도에 어떤 영향이 있었나'라는 영향 질문을 분리하기 위한 기준입니다.",
+    "- 공식 상태 판정은 ONI 3개월 겹침 계절평균과 5개 연속 episode 기준을 따릅니다.",
+    "- 한반도 기온·강수 영향은 실제 관측된 남한 평균자료와 관측 기반 유사해만 사용합니다.",
+    "- KMA 등 기관 공식 기온·강수 전망 확률은 영향 판단 근거에서 제외합니다.",
+    "",
+    "## 판단 계층",
+    "",
+    markdownTable(layerRows, [
+      { key: "layer", label: "층위" },
+      { key: "rule", label: "판단 규칙" },
+      { key: "output", label: "산출/표현" },
+    ]),
+    "",
+    "## 질문별 우선 자료",
+    "",
+    markdownTable(questionRows, [
+      { key: "question", label: "질문" },
+      { key: "first", label: "1순위 자료" },
+      { key: "second", label: "2순위 확인" },
+    ]),
+    "",
+    "## 대외 표현 기준",
+    "",
+    markdownTable(wordingRows, [
+      { key: "situation", label: "상황" },
+      { key: "wording", label: "권장 표현" },
+      { key: "avoid", label: "피해야 할 표현" },
+    ]),
   ].join("\n");
 }
 
@@ -1315,6 +1440,11 @@ function buildResponseSystemIndex() {
       file: "enso_public_communication_guide.md",
       purpose: "공식 엘니뇨 판정 지연 상황에서 언론·대국민 질문에 답하는 문구와 단계 기준",
       use: "엘니뇨냐 아니냐 질문 대응",
+    },
+    {
+      file: "decision_criteria_framework.md",
+      purpose: "ONI 상태 판정, 계절 영향 판단, 발달기·소멸기 라벨, 달력년 표현을 분리하는 기준",
+      use: "표본 선택 기준이 혼란스러울 때 최우선 확인",
     },
     {
       file: "2026_summer_enso_korea_objective_response.md",
@@ -1373,6 +1503,7 @@ export function buildResponseDocuments({
     "changma_typhoon_reference.md": `${buildChangmaTyphoonReference()}\n`,
     "question_answer_matrix.md": `${buildQuestionAnswerMatrix(monthRows, seasonRows)}\n`,
     "enso_public_communication_guide.md": `${buildPublicCommunicationGuide()}\n`,
+    "decision_criteria_framework.md": `${buildDecisionCriteriaFramework()}\n`,
     "2026_summer_enso_korea_objective_response.md": `${buildExampleScenarioResponse(
       monthRows,
       seasonRows,

@@ -18,6 +18,7 @@
 | changma_typhoon_reference.md | 장마·태풍을 ONI 직접효과와 분리하는 해석표 | 장마, 집중호우, 태풍 질문 대응 |
 | question_answer_matrix.md | 실제 질문별 짧은 답, 근거, 반대근거, 실무 문구 | 대외·내부 Q&A 초안 |
 | enso_public_communication_guide.md | 공식 엘니뇨 판정 지연 상황에서 언론·대국민 질문에 답하는 문구와 단계 기준 | 엘니뇨냐 아니냐 질문 대응 |
+| decision_criteria_framework.md | ONI 상태 판정, 계절 영향 판단, 발달기·소멸기 라벨, 달력년 표현을 분리하는 기준 | 표본 선택 기준이 혼란스러울 때 최우선 확인 |
 | 2026_summer_enso_korea_objective_response.md | 2026년 4월 엘니뇨 발달 시나리오에 대한 관측자료 기반 예시 답변 | 실제 문의 대응 예시 |
 
 ## 재생성

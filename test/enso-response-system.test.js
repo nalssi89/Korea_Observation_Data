@@ -214,6 +214,10 @@ test("response documents use ONI as the default and keep RONI auxiliary", () => 
   assert.match(documents["lifecycle_effect_table.md"], /ONI 발달기·소멸기별/u);
   assert.match(documents["lifecycle_effect_table.md"], /엘니뇨 \| 발달기/u);
   assert.match(documents["lifecycle_effect_table.md"], /라니냐 \| 소멸기/u);
+  assert.match(documents["decision_criteria_framework.md"], /ONI 3개월 겹침 계절평균/u);
+  assert.match(documents["decision_criteria_framework.md"], /5개 이상 연속/u);
+  assert.match(documents["decision_criteria_framework.md"], /그해 전체를 발달기 또는 소멸기로 단정하지 않는다/u);
+  assert.match(documents["decision_criteria_framework.md"], /active_season_year_table\.md/u);
   assert.match(documents["analog_year_cards.md"], /ONI 발달해 전체/u);
   assert.match(documents["analog_year_cards.md"], /MJJ-ASO 여름 전환형 부분집합/u);
   assert.match(documents["analog_year_cards.md"], /RONI 보조 민감도/u);
@@ -286,7 +290,7 @@ test("buildResponseSystem writes the expected markdown artifacts", async () => {
   await writeCsv(join(directory, "data/output/final/elnino_summer_2026/analog_year_metrics.csv"), analogRows);
 
   const result = await buildResponseSystem({ baseDir: directory });
-  assert.equal(result.files.length, 12);
+  assert.equal(result.files.length, 13);
 
   const registry = await readFile(
     join(directory, "data/output/final/enso_response_system/evidence_registry.md"),
@@ -303,6 +307,8 @@ test("buildResponseSystem writes the expected markdown artifacts", async () => {
   assert.match(combined, /RONI는 보조 민감도 확인/u);
   assert.match(combined, /장마·태풍 별도 해석 참고표/u);
   assert.match(combined, /엘니뇨 공식 판정 지연과 대국민 소통 가이드/u);
+  assert.match(combined, /ENSO 판단 기준 계층화/u);
+  assert.match(combined, /달력년 약칭을 기온·강수·태풍 영향의 직접 근거로 쓰지 않는다/u);
   assert.match(combined, /예시 답변: 2026년 4월 현재 엘니뇨 발달 가능성과 한반도 영향/u);
   assert.match(combined, /ONI 발달해 전체: JJA 기온/u);
   assert.match(combined, /가을은 엘니뇨 지속 시 소우 쪽 신호/u);
