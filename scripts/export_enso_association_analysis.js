@@ -133,6 +133,41 @@ function assignEpisodePhases(oniRows) {
   return result;
 }
 
+function assignEpisodeLifecycleStages(oniRows) {
+  const result = new Map();
+  let run = [];
+
+  const flush = () => {
+    if (run.length >= 5) {
+      const target =
+        run[0].raw_phase === "El Nino"
+          ? Math.max(...run.map((item) => item.oni))
+          : Math.min(...run.map((item) => item.oni));
+      const turningPointIndex = run.findIndex((item) => item.oni === target);
+      for (const [index, item] of run.entries()) {
+        result.set(
+          `${item.year}:${item.month}`,
+          index <= turningPointIndex ? "Development" : "Decay",
+        );
+      }
+    }
+    run = [];
+  };
+
+  for (const item of oniRows) {
+    if (item.raw_phase === "Neutral") {
+      flush();
+      continue;
+    }
+    if (run.length > 0 && run.at(-1).raw_phase !== item.raw_phase) {
+      flush();
+    }
+    run.push(item);
+  }
+  flush();
+  return result;
+}
+
 function mean(values) {
   const finite = values.filter(Number.isFinite);
   if (finite.length === 0) {
@@ -305,6 +340,7 @@ function aggregateSeasonYearRows(analysisRows) {
         season,
         oni: centerRow.oni,
         phase: centerRow.phase,
+        lifecycle_stage: centerRow.lifecycle_stage,
         tavg_departure: tavgDeparture,
         tavg_sign: signFromDeparture(tavgDeparture),
         precip_observed: precipObserved,
@@ -321,6 +357,7 @@ function aggregateSeasonYearRows(analysisRows) {
 const oniRows = parseOniRows();
 const oniByMonthIndex = new Map(oniRows.map((row) => [monthIndex(row.year, row.month), row.oni]));
 const phaseMap = assignEpisodePhases(oniRows);
+const lifecycleStageMap = assignEpisodeLifecycleStages(oniRows);
 
 const sourceRows = await readCsv(resolve(inputPath));
 const byKey = new Map(sourceRows.map((row) => [`${row.year}:${row.month}:${row.variable}`, row]));
@@ -341,6 +378,7 @@ for (const key of byKey.keys()) {
     season: seasonForMonth(month),
     oni,
     phase: phaseMap.get(`${year}:${month}`) ?? "Neutral",
+    lifecycle_stage: lifecycleStageMap.get(`${year}:${month}`) ?? "Neutral",
     tavg_departure: Number(tavg.departure_value),
     tavg_sign: tavg.departure_sign,
     precip_observed: Number(precip.observed_value),
@@ -355,6 +393,19 @@ const monthPhaseSummary = summarizeGroup(analysisRows, ["month", "phase"]);
 const seasonMonthSampleSummary = summarizeGroup(analysisRows, ["season", "phase"]);
 const seasonYearRows = aggregateSeasonYearRows(analysisRows);
 const seasonPhaseSummary = summarizeGroup(seasonYearRows, ["season", "phase"]);
+const lifecycleRows = analysisRows.filter((row) => row.lifecycle_stage !== "Neutral");
+const seasonLifecycleRows = seasonYearRows.filter((row) => row.lifecycle_stage !== "Neutral");
+const lifecyclePhaseSummary = summarizeGroup(lifecycleRows, ["phase", "lifecycle_stage"]);
+const monthLifecycleSummary = summarizeGroup(lifecycleRows, [
+  "month",
+  "phase",
+  "lifecycle_stage",
+]);
+const seasonLifecycleSummary = summarizeGroup(seasonLifecycleRows, [
+  "season",
+  "phase",
+  "lifecycle_stage",
+]);
 
 const lagCorrelationRows = [];
 for (let lag = 0; lag <= 6; lag += 1) {
@@ -471,6 +522,38 @@ const report = [
     "precip_wet_pct",
   ]),
   "",
+  "## 발달기·소멸기 ENSO 합성",
+  "",
+  "- 발달기와 소멸기는 공식 ONI episode 안에서만 나눕니다.",
+  "- El Nino는 episode 시작부터 첫 번째 ONI 최댓값까지를 발달기, 이후 종료까지를 소멸기로 둡니다.",
+  "- La Nina는 episode 시작부터 첫 번째 ONI 최솟값까지를 발달기, 이후 종료까지를 소멸기로 둡니다.",
+  "- 정점 또는 저점 계절은 발달기에 포함합니다.",
+  "",
+  markdownTable(lifecyclePhaseSummary, [
+    "phase",
+    "lifecycle_stage",
+    "n",
+    "oni_mean",
+    "tavg_departure_mean",
+    "tavg_high_pct",
+    "precip_ratio_pct",
+    "precip_wet_pct",
+  ]),
+  "",
+  "## 계절별 발달기·소멸기 합성",
+  "",
+  markdownTable(seasonLifecycleSummary, [
+    "season",
+    "phase",
+    "lifecycle_stage",
+    "n",
+    "tavg_departure_mean",
+    "tavg_high_pct",
+    "precip_departure_mean",
+    "precip_ratio_pct",
+    "precip_wet_pct",
+  ]),
+  "",
   "## 활용상 주의",
   "",
   "- ENSO는 한반도 기온·강수의 단독 설명변수가 아닙니다. 서태평양 대류, 북태평양고기압, 유라시아 눈덮임, 북극진동, 장마전선, 태풍 경로 등과 함께 해석해야 합니다.",
@@ -482,6 +565,9 @@ await mkdir(resolve(outputDir), { recursive: true });
 await writeCsv(resolve(outputDir, "enso_phase_summary.md"), phaseSummary);
 await writeCsv(resolve(outputDir, "enso_month_phase_summary.md"), monthPhaseSummary);
 await writeCsv(resolve(outputDir, "enso_season_phase_summary.md"), seasonPhaseSummary);
+await writeCsv(resolve(outputDir, "enso_lifecycle_phase_summary.md"), lifecyclePhaseSummary);
+await writeCsv(resolve(outputDir, "enso_month_lifecycle_summary.md"), monthLifecycleSummary);
+await writeCsv(resolve(outputDir, "enso_season_lifecycle_summary.md"), seasonLifecycleSummary);
 await writeCsv(
   resolve(outputDir, "enso_season_month_sample_summary.md"),
   seasonMonthSampleSummary,

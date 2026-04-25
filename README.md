@@ -65,6 +65,7 @@ The detailed source tables are also written to:
 - `data/output/final/enso_response_system/evidence_registry.md`
 - `data/output/final/enso_response_system/monthly_effect_table.md`
 - `data/output/final/enso_response_system/seasonal_effect_table.md`
+- `data/output/final/enso_response_system/lifecycle_effect_table.md`
 - `data/output/final/enso_response_system/climate_factor_modifier_table.md`
 - `data/output/final/enso_response_system/analog_year_cards.md`
 - `data/output/final/enso_response_system/changma_typhoon_reference.md`

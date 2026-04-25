@@ -36,6 +36,7 @@ TODAY = date.today().isoformat()
 
 SEASON_PATH = ROOT / "data/output/final/enso_analysis/enso_season_phase_summary.md"
 MONTH_PATH = ROOT / "data/output/final/enso_analysis/enso_month_phase_summary.md"
+LIFECYCLE_PATH = ROOT / "data/output/final/enso_analysis/enso_season_lifecycle_summary.md"
 ANALOG_PATH = ROOT / "data/output/final/elnino_summer_2026/analog_year_metrics.csv"
 MANIFEST_PATH = ROOT / "data/output/final/elnino_summer_2026/analog_year_metrics_manifest.md"
 PUBLIC_GUIDE_PATH = ROOT / "data/output/final/enso_response_system/enso_public_communication_guide.md"
@@ -66,7 +67,10 @@ def signed(value: str | float | None, digits: int = 1, suffix: str = "") -> str:
     number = numeric(str(value)) if not isinstance(value, float) else value
     if number is None:
         return ""
-    return f"{'+' if number > 0 else ''}{number:.{digits}f}{suffix}"
+    rounded = round(number, digits)
+    if rounded == 0:
+        return f"{0:.{digits}f}{suffix}"
+    return f"{'+' if rounded > 0 else ''}{rounded:.{digits}f}{suffix}"
 
 
 def fixed(value: str | float | None, digits: int = 0, suffix: str = "") -> str:
@@ -78,6 +82,10 @@ def fixed(value: str | float | None, digits: int = 0, suffix: str = "") -> str:
 
 def phase_label(phase: str) -> str:
     return {"El Nino": "엘니뇨", "La Nina": "라니냐", "Neutral": "중립"}.get(phase, phase)
+
+
+def lifecycle_label(stage: str) -> str:
+    return {"Development": "발달기", "Decay": "소멸기"}.get(stage, stage)
 
 
 def temp_signal(departure: str | None, high_pct: str | None, low_pct: str | None) -> str:
@@ -162,6 +170,33 @@ def phase_month_rows(phase: str) -> list[list[str]]:
         rows.append(
             [
                 f"{row['month']}월",
+                row["n"],
+                signed(row["tavg_departure_mean"], 1, "도"),
+                fixed(row["precip_ratio_pct"], 0, "%"),
+                temp_signal(row["tavg_departure_mean"], row["tavg_high_pct"], row["tavg_low_pct"]),
+                precip_signal(row["precip_ratio_pct"], row["precip_wet_pct"], row["precip_dry_pct"]),
+            ]
+        )
+    return rows
+
+
+def lifecycle_rows(phase: str) -> list[list[str]]:
+    rows = []
+    season_order = {"DJF": 0, "MAM": 1, "JJA": 2, "SON": 3}
+    stage_order = {"Development": 0, "Decay": 1}
+    for row in sorted(
+        read_csv(LIFECYCLE_PATH),
+        key=lambda item: (
+            stage_order.get(item["lifecycle_stage"], 9),
+            season_order.get(item["season"], 9),
+        ),
+    ):
+        if row["phase"] != phase:
+            continue
+        rows.append(
+            [
+                lifecycle_label(row["lifecycle_stage"]),
+                row["season"],
                 row["n"],
                 signed(row["tavg_departure_mean"], 1, "도"),
                 fixed(row["precip_ratio_pct"], 0, "%"),
@@ -371,6 +406,27 @@ def el_nino_manual() -> tuple[str, list[Section]]:
             ],
         ),
         Section(
+            "발달기·소멸기별 영향",
+            [
+                make_paragraph(
+                    "발달기와 소멸기는 공식 ONI episode 안에서만 구분합니다. 엘니뇨는 episode 시작부터 첫 번째 ONI 최댓값까지를 발달기, 이후 episode 종료까지를 소멸기로 둡니다. 정점 계절은 발달기에 포함합니다."
+                ),
+                make_table(
+                    ["단계", "계절", "표본", "기온편차", "강수평년비", "기온 신호", "강수 신호"],
+                    lifecycle_rows("El Nino"),
+                    wide=True,
+                ),
+                make_bullets(
+                    [
+                        "발달기는 여름 전환·가을 지속 질문에 우선 참고하지만, 한반도 여름 폭염·다우·태풍 증가는 별도 순환 조건이 필요합니다.",
+                        "소멸기는 다음 봄·여름 질문에서 잔류 영향 가능성을 설명할 때 쓰되, 월별 표본과 장마·태풍 보정 레이어를 반드시 함께 봅니다.",
+                        "표에 없는 단계·계절 조합은 완전한 계절연도 표본이 없어 제시하지 않습니다.",
+                        "표본이 작으므로 발달기·소멸기 표는 기본 월별·계절별 ONI 표를 대체하지 않습니다.",
+                    ]
+                ),
+            ],
+        ),
+        Section(
             "장마·태풍 대응",
             [
                 make_bullets(
@@ -491,6 +547,27 @@ def la_nina_manual() -> tuple[str, list[Section]]:
                     ["시작연도", "시작", "종료", "최저 ONI", "지속 계절수"],
                     oni_episodes("La Nina"),
                     wide=True,
+                ),
+            ],
+        ),
+        Section(
+            "발달기·소멸기별 영향",
+            [
+                make_paragraph(
+                    "발달기와 소멸기는 공식 ONI episode 안에서만 구분합니다. 라니냐는 episode 시작부터 첫 번째 ONI 최솟값까지를 발달기, 이후 episode 종료까지를 소멸기로 둡니다. 저점 계절은 발달기에 포함합니다."
+                ),
+                make_table(
+                    ["단계", "계절", "표본", "기온편차", "강수평년비", "기온 신호", "강수 신호"],
+                    lifecycle_rows("La Nina"),
+                    wide=True,
+                ),
+                make_bullets(
+                    [
+                        "발달기는 가을·겨울 한파와 건조 질문에서 보조 확인하지만, AO와 동아시아 겨울몬순을 함께 봐야 합니다.",
+                        "소멸기는 봄철 저온·강수 및 여름 장마·태풍 질문에서 별도 확인하되, 위상 자체보다 계절 순환을 우선합니다.",
+                        "표에 없는 단계·계절 조합은 완전한 계절연도 표본이 없어 제시하지 않습니다.",
+                        "표본이 작으므로 발달기·소멸기 표는 기본 월별·계절별 ONI 표를 대체하지 않습니다.",
+                    ]
                 ),
             ],
         ),

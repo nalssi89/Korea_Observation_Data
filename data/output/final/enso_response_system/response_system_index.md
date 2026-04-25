@@ -11,6 +11,7 @@
 | evidence_registry.md | ONI, RONI, 남한 자료, AO/NAO, 해빙, 유라시아 눈덮임의 적용 규칙 | 자료 기준을 설명할 때 먼저 확인 |
 | monthly_effect_table.md | ONI 위상별 1~12월 기온·강수 영향표 | 월별 질문 대응 |
 | seasonal_effect_table.md | ONI 위상별 DJF/MAM/JJA/SON 기온·강수 영향표 | 계절 전망 질문 대응 |
+| lifecycle_effect_table.md | 엘니뇨·라니냐 발달기와 소멸기별 계절 기온·강수 영향표 | 발달기인지 소멸기인지 묻는 질문 대응 |
 | climate_factor_modifier_table.md | AO, NAO, 해빙, 유라시아 눈덮임으로 ONI 결론을 보정 | 유사해 우선순위와 반대근거 확인 |
 | analog_year_cards.md | ONI 중심 유사해와 RONI 보조 사례 | 과거 유사해 질문 대응 |
 | changma_typhoon_reference.md | 장마·태풍을 ONI 직접효과와 분리하는 해석표 | 장마, 집중호우, 태풍 질문 대응 |

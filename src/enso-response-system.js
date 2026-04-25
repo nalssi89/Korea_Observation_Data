@@ -12,6 +12,7 @@ const COMBINED_DOCUMENT_ORDER = [
   "2026_summer_enso_korea_objective_response.md",
   "monthly_effect_table.md",
   "seasonal_effect_table.md",
+  "lifecycle_effect_table.md",
   "climate_factor_modifier_table.md",
   "analog_year_cards.md",
   "changma_typhoon_reference.md",
@@ -20,6 +21,10 @@ const PHASE_LABELS = {
   "El Nino": "엘니뇨",
   Neutral: "중립",
   "La Nina": "라니냐",
+};
+const LIFECYCLE_LABELS = {
+  Development: "발달기",
+  Decay: "소멸기",
 };
 
 const MONTH_NAMES = {
@@ -185,6 +190,20 @@ function sortSeasonRows(rows) {
   });
 }
 
+function sortLifecycleRows(rows) {
+  const seasonOrder = { DJF: 0, MAM: 1, JJA: 2, SON: 3 };
+  const lifecycleOrder = { Development: 0, Decay: 1 };
+  return [...rows].sort((left, right) => {
+    const phaseDiff = PHASES.indexOf(left.phase) - PHASES.indexOf(right.phase);
+    if (phaseDiff !== 0) return phaseDiff;
+    const stageDiff =
+      (lifecycleOrder[left.lifecycle_stage] ?? 9) -
+      (lifecycleOrder[right.lifecycle_stage] ?? 9);
+    if (stageDiff !== 0) return stageDiff;
+    return (seasonOrder[left.season] ?? 9) - (seasonOrder[right.season] ?? 9);
+  });
+}
+
 function buildMonthlyEffectTable(monthRows) {
   const rows = sortMonthRows(monthRows).map((row) => {
     const count = numeric(row.n) ?? 0;
@@ -297,6 +316,84 @@ function buildSeasonalEffectTable(seasonRows, seasonMonthSampleRows = []) {
   ].join("\n");
 }
 
+function buildLifecycleEffectTable(lifecycleRows = []) {
+  const rows = sortLifecycleRows(lifecycleRows).map((row) => {
+    const count = numeric(row.n) ?? 0;
+    return {
+      phase: PHASE_LABELS[row.phase] ?? row.phase,
+      lifecycle_stage: LIFECYCLE_LABELS[row.lifecycle_stage] ?? row.lifecycle_stage,
+      season: row.season,
+      n: count,
+      tavg_departure: signedFormat(numeric(row.tavg_departure_mean), 1, "°C"),
+      tavg_high_pct: format(numeric(row.tavg_high_pct), 0, "%"),
+      precip_departure: signedFormat(numeric(row.precip_departure_mean), 1, "mm"),
+      precip_ratio: format(numeric(row.precip_ratio_pct), 0, "%"),
+      temp_signal: temperatureSignal(row),
+      precip_signal: precipitationSignal(row),
+      confidence: confidenceFromCount(count),
+    };
+  });
+
+  const interpretationRows = [
+    {
+      item: "엘니뇨 발달기",
+      use: "해수온이 엘니뇨 정점으로 강화되는 구간. 여름 발달 질문과 초기 대외 설명에 우선 확인.",
+      caution: "발달기라는 이유만으로 한반도 여름 고온·다우·태풍 증가를 단정하지 않음.",
+    },
+    {
+      item: "엘니뇨 소멸기",
+      use: "정점 이후 약화되는 구간. 다음 봄·여름 영향 질문에서 잔류 대기반응과 월별 통계를 분리.",
+      caution: "소멸기에도 AO, 북태평양고기압, 장마전선, 태풍 경로가 결과를 바꿀 수 있음.",
+    },
+    {
+      item: "라니냐 발달기",
+      use: "해수온이 라니냐 저점으로 강화되는 구간. 가을·겨울 한파/건조 질문에서 보조 확인.",
+      caution: "라니냐 발달만으로 겨울 한파·건조·폭설을 확정하지 않음.",
+    },
+    {
+      item: "라니냐 소멸기",
+      use: "저점 이후 약화되는 구간. 봄철 저온·강수, 여름 장마·태풍 질문에서 별도 확인.",
+      caution: "소멸기 효과는 표본이 작아 월별·계절별 반대사례를 반드시 같이 제시.",
+    },
+  ];
+
+  return [
+    "# ONI 발달기·소멸기별 기온·강수 영향표",
+    "",
+    "- 기본 지표는 ONI입니다.",
+    "- 발달기·소멸기는 공식 ONI episode 안에서만 나눕니다.",
+    "- El Nino는 episode 시작부터 첫 번째 ONI 최댓값까지를 발달기, 이후 종료까지를 소멸기로 둡니다.",
+    "- La Nina는 episode 시작부터 첫 번째 ONI 최솟값까지를 발달기, 이후 종료까지를 소멸기로 둡니다.",
+    "- 정점 또는 저점 계절은 발달기에 포함합니다.",
+    "- 표본이 작으므로 이 표는 위상별 월별·계절별 표를 대체하지 않고, 발달/소멸 질문에 대한 보조 판단표로 사용합니다.",
+    "- 표에 없는 위상·단계·계절 조합은 완전한 계절연도 표본이 없어 제시하지 않습니다.",
+    "",
+    rows.length > 0
+      ? markdownTable(rows, [
+          { key: "phase", label: "ONI 위상" },
+          { key: "lifecycle_stage", label: "단계" },
+          { key: "season", label: "계절" },
+          { key: "n", label: "표본(계절연도)" },
+          { key: "tavg_departure", label: "평균기온 편차" },
+          { key: "tavg_high_pct", label: "고온 비율" },
+          { key: "precip_departure", label: "강수 편차" },
+          { key: "precip_ratio", label: "강수 평년비" },
+          { key: "temp_signal", label: "기온 신호" },
+          { key: "precip_signal", label: "강수 신호" },
+          { key: "confidence", label: "신뢰도" },
+        ])
+      : "발달기·소멸기 산출 파일이 없습니다.",
+    "",
+    "## 해석 순서",
+    "",
+    markdownTable(interpretationRows, [
+      { key: "item", label: "단계" },
+      { key: "use", label: "사용법" },
+      { key: "caution", label: "주의" },
+    ]),
+  ].join("\n");
+}
+
 function extractContextValue(text, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   const match = text.match(new RegExp(`\\| ${escaped} \\| ([^|]+) \\|`, "u"));
@@ -402,6 +499,12 @@ function buildEvidenceRegistry(stationPolicy) {
       role: "여름 중 전환 질문의 부분집합",
       source: "data/output/final/elnino_summer_2026/analog_year_metrics.csv",
       rule: "ONI warm episode 시작이 MJJ~ASO인 해. ONI 발달해 전체를 대체하지 않고 하위 표본으로만 사용.",
+    },
+    {
+      item: "ONI 발달기·소멸기",
+      role: "episode 생애주기별 영향 보조 판단",
+      source: "data/output/final/enso_analysis/enso_season_lifecycle_summary.md",
+      rule: "El Nino는 첫 ONI 최댓값까지, La Nina는 첫 ONI 최솟값까지를 발달기로 두고 이후를 소멸기로 구분. 정점/저점은 발달기에 포함.",
     },
     {
       item: "RONI",
@@ -1111,6 +1214,11 @@ function buildResponseSystemIndex() {
       use: "계절 전망 질문 대응",
     },
     {
+      file: "lifecycle_effect_table.md",
+      purpose: "엘니뇨·라니냐 발달기와 소멸기별 계절 기온·강수 영향표",
+      use: "발달기인지 소멸기인지 묻는 질문 대응",
+    },
+    {
       file: "climate_factor_modifier_table.md",
       purpose: "AO, NAO, 해빙, 유라시아 눈덮임으로 ONI 결론을 보정",
       use: "유사해 우선순위와 반대근거 확인",
@@ -1169,6 +1277,7 @@ export function buildResponseDocuments({
   monthRows,
   seasonRows,
   seasonMonthSampleRows = [],
+  lifecycleRows = [],
   analogRows = [],
   currentContextText = "",
   stationPolicy = DEFAULT_STATION_POLICY,
@@ -1180,6 +1289,7 @@ export function buildResponseDocuments({
       seasonRows,
       seasonMonthSampleRows,
     )}\n`,
+    "lifecycle_effect_table.md": `${buildLifecycleEffectTable(lifecycleRows)}\n`,
     "climate_factor_modifier_table.md": `${buildClimateFactorModifierTable(
       currentContextText,
       analogRows,
@@ -1210,6 +1320,10 @@ export function buildCombinedResponseSystem(documents) {
     {
       situation: "과거 유사해에는 어떤 일이 있었는가?",
       section: "ONI 중심 유사해 카드, ONI 해석 보정용 기후인자 표",
+    },
+    {
+      situation: "발달기와 소멸기에 한반도 영향이 다른가?",
+      section: "ONI 발달기·소멸기별 기온·강수 영향표",
     },
     {
       situation: "장마·태풍 질문에 어떻게 답할 것인가?",
@@ -1301,6 +1415,9 @@ export async function buildResponseSystem({
   const seasonMonthSampleRows = await readOptionalCsv(
     resolve(absoluteBase, "data/output/final/enso_analysis/enso_season_month_sample_summary.md"),
   );
+  const lifecycleRows = await readOptionalCsv(
+    resolve(absoluteBase, "data/output/final/enso_analysis/enso_season_lifecycle_summary.md"),
+  );
   const analogRows = await readCsv(
     resolve(absoluteBase, "data/output/final/elnino_summer_2026/analog_year_metrics.csv"),
   );
@@ -1315,6 +1432,7 @@ export async function buildResponseSystem({
     monthRows,
     seasonRows,
     seasonMonthSampleRows,
+    lifecycleRows,
     analogRows,
     currentContextText: `${currentContextText}\n${extraContextText}`,
     stationPolicy,

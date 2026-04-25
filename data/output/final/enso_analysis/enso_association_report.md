@@ -113,6 +113,40 @@
 | 12 | Neutral | 15 | -0.2608 | 26.6667 | -0.9606 | 96.5653 | 33.3333 |
 | 12 | La Nina | 20 | -0.6155 | 15 | -8.6648 | 69.0193 | 25 |
 
+## 발달기·소멸기 ENSO 합성
+
+- 발달기와 소멸기는 공식 ONI episode 안에서만 나눕니다.
+- El Nino는 episode 시작부터 첫 번째 ONI 최댓값까지를 발달기, 이후 종료까지를 소멸기로 둡니다.
+- La Nina는 episode 시작부터 첫 번째 ONI 최솟값까지를 발달기, 이후 종료까지를 소멸기로 둡니다.
+- 정점 또는 저점 계절은 발달기에 포함합니다.
+
+| phase | lifecycle_stage | n | oni_mean | tavg_departure_mean | tavg_high_pct | precip_ratio_pct | precip_wet_pct |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| El Nino | Decay | 70 | 1.0857 | 0.2298 | 42.8571 | 97.3347 | 37.1429 |
+| El Nino | Development | 95 | 1.1011 | -0.0505 | 31.5789 | 100.5013 | 33.6842 |
+| La Nina | Decay | 89 | -0.8899 | -0.3255 | 25.8427 | 105.536 | 38.2022 |
+| La Nina | Development | 94 | -1.0309 | -0.0054 | 32.9787 | 98.0349 | 36.1702 |
+
+## 계절별 발달기·소멸기 합성
+
+| season | phase | lifecycle_stage | n | tavg_departure_mean | tavg_high_pct | precip_departure_mean | precip_ratio_pct | precip_wet_pct |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| DJF | El Nino | Decay | 15 | 0.2305 | 53.3333 | 13.4444 | 114.9569 | 46.6667 |
+| DJF | El Nino | Development | 3 | 0.4414 | 66.6667 | 22.8383 | 125.4076 | 66.6667 |
+| DJF | La Nina | Decay | 14 | -0.8541 | 14.2857 | -7.416 | 91.7497 | 21.4286 |
+| DJF | La Nina | Development | 5 | -0.0022 | 40 | -36.2806 | 59.6377 | 0 |
+| JJA | El Nino | Development | 9 | -0.1905 | 33.3333 | 57.9846 | 107.9737 | 44.4444 |
+| JJA | La Nina | Decay | 4 | 0.004 | 75 | -3.5222 | 99.5156 | 25 |
+| JJA | La Nina | Development | 7 | 0.0317 | 42.8571 | -56.7467 | 92.1965 | 28.5714 |
+| MAM | El Nino | Decay | 6 | 0.714 | 83.3333 | 18.5716 | 107.4774 | 33.3333 |
+| MAM | El Nino | Development | 3 | -0.0659 | 66.6667 | -29.8986 | 87.9621 | 0 |
+| MAM | La Nina | Decay | 8 | -0.2882 | 37.5 | 11.1955 | 104.5076 | 37.5 |
+| MAM | La Nina | Development | 3 | 0.1898 | 33.3333 | 20.9299 | 108.4269 | 66.6667 |
+| SON | El Nino | Decay | 2 | 0.0689 | 50 | -55.3774 | 79.1793 | 0 |
+| SON | El Nino | Development | 15 | -0.2261 | 46.6667 | -48.2615 | 81.8547 | 13.3333 |
+| SON | La Nina | Decay | 4 | 0.1957 | 75 | 66.2936 | 124.925 | 75 |
+| SON | La Nina | Development | 14 | -0.0451 | 42.8571 | 9.4408 | 103.5495 | 35.7143 |
+
 ## 활용상 주의
 
 - ENSO는 한반도 기온·강수의 단독 설명변수가 아닙니다. 서태평양 대류, 북태평양고기압, 유라시아 눈덮임, 북극진동, 장마전선, 태풍 경로 등과 함께 해석해야 합니다.
