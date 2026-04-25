@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:enso-response": "node scripts/build_enso_response_system.js data/output/final/enso_response_system ../ENSO_RESPONSE_SYSTEM.md",
+    "build:enso-analogs": "node scripts/build_elnino_analog_metrics.js",
+    "build:enso-association": "node scripts/export_enso_association_analysis.js",
+    "build:enso-response": "npm run build:enso-association && npm run build:enso-analogs && node scripts/build_enso_response_system.js",
     "test": "node --test --test-isolation=none"
   }
 }

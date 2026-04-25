@@ -180,6 +180,35 @@ function seasonForMonth(month) {
   return "DJF";
 }
 
+function seasonCenterMonth(season) {
+  return { DJF: 1, MAM: 4, JJA: 7, SON: 10 }[season];
+}
+
+function seasonMonthSpecs(seasonYear, season) {
+  if (season === "DJF") {
+    return [
+      { year: seasonYear - 1, month: 12 },
+      { year: seasonYear, month: 1 },
+      { year: seasonYear, month: 2 },
+    ];
+  }
+
+  const startMonth = { MAM: 3, JJA: 6, SON: 9 }[season];
+  return [0, 1, 2].map((offset) => ({ year: seasonYear, month: startMonth + offset }));
+}
+
+function signFromDeparture(value) {
+  if (!Number.isFinite(value) || Math.abs(value) < 0.05) return "0";
+  return value > 0 ? "+" : "-";
+}
+
+function signFromRatio(value) {
+  if (!Number.isFinite(value)) return "0";
+  if (value >= 110) return "+";
+  if (value <= 90) return "-";
+  return "0";
+}
+
 function summarizeGroup(rows, groupFields) {
   const groups = new Map();
   for (const row of rows) {
@@ -244,6 +273,51 @@ function markdownTable(rows, fields) {
   return lines.join("\n");
 }
 
+function aggregateSeasonYearRows(analysisRows) {
+  const rowsByMonth = new Map(
+    analysisRows.map((row) => [`${row.year}:${row.month}`, row]),
+  );
+  const years = [...new Set(analysisRows.map((row) => row.year))].sort((left, right) => left - right);
+  const seasons = ["DJF", "MAM", "JJA", "SON"];
+  const seasonRows = [];
+
+  for (const seasonYear of years) {
+    for (const season of seasons) {
+      const monthSpecs = seasonMonthSpecs(seasonYear, season);
+      const monthlyRows = monthSpecs.map(({ year, month }) => rowsByMonth.get(`${year}:${month}`));
+      if (monthlyRows.some((row) => row === undefined)) {
+        continue;
+      }
+
+      const centerRow = rowsByMonth.get(`${seasonYear}:${seasonCenterMonth(season)}`);
+      if (!centerRow) {
+        continue;
+      }
+
+      const tavgDeparture = mean(monthlyRows.map((row) => row.tavg_departure));
+      const precipObserved = monthlyRows.reduce((sum, row) => sum + row.precip_observed, 0);
+      const precipNormal = monthlyRows.reduce((sum, row) => sum + row.precip_normal, 0);
+      const precipDeparture = precipObserved - precipNormal;
+      const precipRatio = (precipObserved / precipNormal) * 100;
+
+      seasonRows.push({
+        year: seasonYear,
+        season,
+        oni: centerRow.oni,
+        phase: centerRow.phase,
+        tavg_departure: tavgDeparture,
+        tavg_sign: signFromDeparture(tavgDeparture),
+        precip_observed: precipObserved,
+        precip_normal: precipNormal,
+        precip_departure: precipDeparture,
+        precip_sign: signFromRatio(precipRatio),
+      });
+    }
+  }
+
+  return seasonRows;
+}
+
 const oniRows = parseOniRows();
 const oniByMonthIndex = new Map(oniRows.map((row) => [monthIndex(row.year, row.month), row.oni]));
 const phaseMap = assignEpisodePhases(oniRows);
@@ -278,7 +352,9 @@ for (const key of byKey.keys()) {
 
 const phaseSummary = summarizeGroup(analysisRows, ["phase"]);
 const monthPhaseSummary = summarizeGroup(analysisRows, ["month", "phase"]);
-const seasonPhaseSummary = summarizeGroup(analysisRows, ["season", "phase"]);
+const seasonMonthSampleSummary = summarizeGroup(analysisRows, ["season", "phase"]);
+const seasonYearRows = aggregateSeasonYearRows(analysisRows);
+const seasonPhaseSummary = summarizeGroup(seasonYearRows, ["season", "phase"]);
 
 const lagCorrelationRows = [];
 for (let lag = 0; lag <= 6; lag += 1) {
@@ -354,7 +430,24 @@ const report = [
   "",
   "## 계절별 ENSO 합성",
   "",
+  "- 아래 표는 3개월이 모두 있는 완전한 계절연도 단위입니다. 예를 들어 JJA 표본은 6~8월을 한 해 여름으로 합산한 개수입니다.",
+  "",
   markdownTable(seasonPhaseSummary, [
+    "season",
+    "phase",
+    "n",
+    "tavg_departure_mean",
+    "tavg_high_pct",
+    "precip_departure_mean",
+    "precip_ratio_pct",
+    "precip_wet_pct",
+  ]),
+  "",
+  "## 계절별 ENSO 월표본 합성",
+  "",
+  "- 이 표는 월별 행을 계절명으로 묶은 진단용 표입니다. JJA n은 여름 개수가 아니라 6월, 7월, 8월 월별 표본 개수입니다.",
+  "",
+  markdownTable(seasonMonthSampleSummary, [
     "season",
     "phase",
     "n",
@@ -389,5 +482,9 @@ await mkdir(resolve(outputDir), { recursive: true });
 await writeCsv(resolve(outputDir, "enso_phase_summary.md"), phaseSummary);
 await writeCsv(resolve(outputDir, "enso_month_phase_summary.md"), monthPhaseSummary);
 await writeCsv(resolve(outputDir, "enso_season_phase_summary.md"), seasonPhaseSummary);
+await writeCsv(
+  resolve(outputDir, "enso_season_month_sample_summary.md"),
+  seasonMonthSampleSummary,
+);
 await writeCsv(resolve(outputDir, "enso_lag_correlations.md"), lagCorrelationRows);
 await writeFile(resolve(outputDir, "enso_association_report.md"), `${report}\n`, "utf8");

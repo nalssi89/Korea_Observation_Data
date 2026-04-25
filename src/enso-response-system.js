@@ -8,6 +8,7 @@ const COMBINED_DOCUMENT_ORDER = [
   "response_system_index.md",
   "evidence_registry.md",
   "question_answer_matrix.md",
+  "2026_summer_enso_korea_objective_response.md",
   "monthly_effect_table.md",
   "seasonal_effect_table.md",
   "climate_factor_modifier_table.md",
@@ -112,7 +113,57 @@ function temperatureSignal(row) {
 }
 
 function hasPrimaryOniSignal(row) {
+  if ("oni_development_full" in row || "oni_summer_transition" in row) {
+    return isOniDevelopmentFull(row) || isOniSummerTransition(row);
+  }
   return /(^|;\s*)ONI\s/u.test(row.onset_proxy ?? "");
+}
+
+function flagEnabled(row, key) {
+  return String(row[key] ?? "").toUpperCase() === "Y";
+}
+
+function isOniDevelopmentFull(row) {
+  if ("oni_development_full" in row) {
+    return flagEnabled(row, "oni_development_full");
+  }
+  return /(^|;\s*)ONI\s/u.test(row.onset_proxy ?? "");
+}
+
+function isOniSummerTransition(row) {
+  if ("oni_summer_transition" in row) {
+    return flagEnabled(row, "oni_summer_transition");
+  }
+  return /(^|;\s*)ONI\s/u.test(row.onset_proxy ?? "");
+}
+
+function isRoniAuxiliary(row) {
+  if ("roni_auxiliary" in row) {
+    return flagEnabled(row, "roni_auxiliary");
+  }
+  return /(^|;\s*)RONI\s/u.test(row.onset_proxy ?? "");
+}
+
+function analogDistance(row) {
+  return (
+    numeric(row.transition_distance_to_2026) ??
+    numeric(row.distance_to_2026) ??
+    numeric(row.high_latitude_distance)
+  );
+}
+
+function sortAnalogRowsRecent(rows) {
+  return [...rows].sort((left, right) => (numeric(right.year) ?? 0) - (numeric(left.year) ?? 0));
+}
+
+function analogFactorSummary(row) {
+  const parts = [];
+  if (numeric(row.ao_jfm) !== null) parts.push(`AO ${format(numeric(row.ao_jfm), 2)}`);
+  if (numeric(row.nao_jfm) !== null) parts.push(`NAO ${format(numeric(row.nao_jfm), 2)}`);
+  if (numeric(row.arctic_jfm_z) !== null) {
+    parts.push(`해빙 z ${format(numeric(row.arctic_jfm_z), 2)}`);
+  }
+  return parts.join(", ");
 }
 
 function sortMonthRows(rows) {
@@ -177,7 +228,7 @@ function buildMonthlyEffectTable(monthRows) {
   ].join("\n");
 }
 
-function buildSeasonalEffectTable(seasonRows) {
+function buildSeasonalEffectTable(seasonRows, seasonMonthSampleRows = []) {
   const rows = sortSeasonRows(seasonRows).map((row) => {
     const count = numeric(row.n) ?? 0;
     return {
@@ -196,15 +247,16 @@ function buildSeasonalEffectTable(seasonRows) {
   });
 
   return [
-    "# ONI 기준 계절별 기온·강수 영향표",
+    "# ONI 기준 계절연도별 기온·강수 영향표",
     "",
     "- 기본 지표는 ONI입니다.",
     "- 남한 평균자료와 1991~2020 고정 평년을 그대로 사용합니다.",
+    "- 이 표의 표본은 3개월이 모두 있는 완전한 계절연도입니다. JJA는 한 해의 6~8월을 합산·평균한 1개 여름입니다.",
     "",
     markdownTable(rows, [
       { key: "season", label: "계절" },
       { key: "phase", label: "ONI 위상" },
-      { key: "n", label: "표본" },
+      { key: "n", label: "표본(계절연도)" },
       { key: "tavg_departure", label: "평균기온 편차" },
       { key: "tavg_high_pct", label: "고온 비율" },
       { key: "precip_departure", label: "강수 편차" },
@@ -219,6 +271,28 @@ function buildSeasonalEffectTable(seasonRows) {
     "",
     "- JJA 평균만 보지 않고 6월, 7월, 8월을 따로 확인합니다.",
     "- 강수량은 장마전선, 저기압, 태풍 수증기 유입에 민감하므로 계절 평균과 집중호우 위험을 분리합니다.",
+    "",
+    "## 진단용 계절 월표본",
+    "",
+    "- 아래 표는 월별 행을 계절명으로 묶은 보조 진단표입니다. JJA n은 여름 수가 아니라 6월·7월·8월 월별 표본 수입니다.",
+    seasonMonthSampleRows.length > 0
+      ? markdownTable(
+          sortSeasonRows(seasonMonthSampleRows).map((row) => ({
+            season: row.season,
+            phase: PHASE_LABELS[row.phase] ?? row.phase,
+            n: row.n,
+            tavg_departure: signedFormat(numeric(row.tavg_departure_mean), 1, "°C"),
+            precip_ratio: format(numeric(row.precip_ratio_pct), 0, "%"),
+          })),
+          [
+            { key: "season", label: "계절" },
+            { key: "phase", label: "ONI 위상" },
+            { key: "n", label: "표본(월)" },
+            { key: "tavg_departure", label: "평균기온 편차" },
+            { key: "precip_ratio", label: "강수 평년비" },
+          ],
+        )
+      : "진단용 월표본 파일이 없습니다.",
   ].join("\n");
 }
 
@@ -259,12 +333,12 @@ function buildClimateFactorModifierTable(contextText, analogRows) {
   ];
 
   const analogFactorRows = analogRows
-    .filter(hasPrimaryOniSignal)
+    .filter(isOniDevelopmentFull)
     .slice(0, 8)
     .map((row) => ({
       year: row.year,
-      onset: row.onset_proxy,
-      distance: format(numeric(row.distance_to_2026), 2),
+      onset: row.oni_episode_start || row.onset_proxy,
+      distance: format(analogDistance(row), 2),
       ao_jfm: format(numeric(row.ao_jfm), 2),
       nao_jfm: format(numeric(row.nao_jfm), 2),
       arctic_z: format(numeric(row.arctic_jfm_z), 2),
@@ -315,6 +389,18 @@ function buildEvidenceRegistry(stationPolicy) {
       role: "기본 ENSO 판정",
       source: "NOAA/CPC ONI v5",
       rule: "+0.5°C 이상 또는 -0.5°C 이하가 5개 이상 연속된 episode를 phase로 사용",
+    },
+    {
+      item: "ONI 발달해 전체",
+      role: "유사해 기본 표본",
+      source: "data/output/final/elnino_summer_2026/analog_year_metrics.csv",
+      rule: "1979년 이후 ONI warm episode 시작이 AMJ~SON인 해. 판단표는 최근 연도순으로 제시.",
+    },
+    {
+      item: "MJJ-ASO 여름 전환형",
+      role: "여름 중 전환 질문의 부분집합",
+      source: "data/output/final/elnino_summer_2026/analog_year_metrics.csv",
+      rule: "ONI warm episode 시작이 MJJ~ASO인 해. ONI 발달해 전체를 대체하지 않고 하위 표본으로만 사용.",
     },
     {
       item: "RONI",
@@ -385,88 +471,81 @@ function buildEvidenceRegistry(stationPolicy) {
 }
 
 function buildAnalogYearCards(analogRows) {
-  const primaryRows = analogRows
-    .filter(hasPrimaryOniSignal)
-    .map((row) => ({
-      year: row.year,
-      tier: "ONI 기본",
-      onset: row.onset_proxy,
-      distance: format(numeric(row.distance_to_2026), 2),
-      tavg: `${format(numeric(row.jja_tavg), 2, "°C")} (${signedFormat(
-        numeric(row.jja_tavg_dep),
-        1,
-        "°C",
-      )})`,
-      tmax: `${format(numeric(row.jja_tmax), 2, "°C")} (${signedFormat(
-        numeric(row.jja_tmax_dep),
-        1,
-        "°C",
-      )})`,
-      precip: `${format(numeric(row.jja_precip), 1, "mm")} (${format(
-        numeric(row.jja_precip_ratio),
-        0,
-        "%",
-      )})`,
-      factors: `AO ${format(numeric(row.ao_jfm), 2)}, NAO ${format(
-        numeric(row.nao_jfm),
-        2,
-      )}, 해빙 z ${format(numeric(row.arctic_jfm_z), 2)}`,
-    }));
-
-  const sensitivityRows = analogRows
-    .filter((row) => !hasPrimaryOniSignal(row))
-    .map((row) => ({
-      year: row.year,
-      tier: "RONI 보조",
-      onset: row.onset_proxy,
-      distance: format(numeric(row.distance_to_2026), 2),
-      tavg: `${format(numeric(row.jja_tavg), 2, "°C")} (${signedFormat(
-        numeric(row.jja_tavg_dep),
-        1,
-        "°C",
-      )})`,
-      tmax: `${format(numeric(row.jja_tmax), 2, "°C")} (${signedFormat(
-        numeric(row.jja_tmax_dep),
-        1,
-        "°C",
-      )})`,
-      precip: `${format(numeric(row.jja_precip), 1, "mm")} (${format(
-        numeric(row.jja_precip_ratio),
-        0,
-        "%",
-      )})`,
-      factors: `AO ${format(numeric(row.ao_jfm), 2)}, NAO ${format(
-        numeric(row.nao_jfm),
-        2,
-      )}, 해빙 z ${format(numeric(row.arctic_jfm_z), 2)}`,
-    }));
-
   const fields = [
     { key: "year", label: "연도" },
-    { key: "tier", label: "구분" },
-    { key: "onset", label: "전환 근거" },
+    { key: "tier", label: "기준" },
+    { key: "onset", label: "ONI/RONI 근거" },
     { key: "distance", label: "2026 유사도" },
     { key: "tavg", label: "JJA 평균기온" },
-    { key: "tmax", label: "JJA 최고기온" },
+    { key: "tavg_signs", label: "6~8월 기온 부호" },
     { key: "precip", label: "JJA 강수량" },
+    { key: "precip_signs", label: "6~8월 강수 부호" },
     { key: "factors", label: "보조 인자" },
+    { key: "typhoon", label: "태풍 참고" },
   ];
+
+  const mapAnalogRow = (row, tier) => ({
+      year: row.year,
+      tier,
+      onset: row.onset_proxy,
+      distance: format(analogDistance(row), 2),
+      tavg: `${format(numeric(row.jja_tavg), 2, "°C")} (${signedFormat(
+        numeric(row.jja_tavg_dep),
+        1,
+        "°C",
+      )})`,
+      tavg_signs: row.jja_tavg_month_signs ?? "",
+      tmax: `${format(numeric(row.jja_tmax), 2, "°C")} (${signedFormat(
+        numeric(row.jja_tmax_dep),
+        1,
+        "°C",
+      )})`,
+      precip: `${format(numeric(row.jja_precip), 1, "mm")} (${format(
+        numeric(row.jja_precip_ratio),
+        0,
+        "%",
+      )})`,
+      precip_signs: row.jja_precip_month_signs ?? "",
+      factors: analogFactorSummary(row),
+      typhoon: row.typhoon_near_korea_count
+        ? `${row.typhoon_near_korea_count}개 ${row.typhoon_reference ?? ""}`.trim()
+        : "",
+  });
+
+  const developmentRows = sortAnalogRowsRecent(analogRows)
+    .filter(isOniDevelopmentFull)
+    .map((row) => mapAnalogRow(row, "ONI 발달해 전체"));
+  const transitionRows = sortAnalogRowsRecent(analogRows)
+    .filter(isOniSummerTransition)
+    .map((row) => mapAnalogRow(row, "MJJ-ASO 여름 전환형"));
+  const roniRows = sortAnalogRowsRecent(analogRows)
+    .filter(isRoniAuxiliary)
+    .map((row) =>
+      mapAnalogRow(
+        row,
+        flagEnabled(row, "roni_only_sensitivity") ? "RONI-only 민감도" : "RONI 보조 표기",
+      ),
+    );
 
   return [
     "# ONI 중심 유사해 카드",
     "",
-    "- 먼저 ONI 기준 전환 사례를 봅니다.",
-    "- RONI만 걸리는 사례는 보조 민감도 확인으로 분리합니다.",
+    "- 판단 기본 표본은 ONI 발달해 전체입니다.",
+    "- MJJ-ASO 여름 전환형은 여름 중 전환 질문에만 쓰는 부분집합입니다.",
+    "- RONI는 보조 민감도 확인이며 ONI 기본 표본을 대체하지 않습니다.",
+    "- 표는 최근 연도순으로 정렬합니다.",
     "",
-    "## ONI 기본 유사해",
+    "## ONI 발달해 전체",
     "",
-    markdownTable(primaryRows, fields),
+    markdownTable(developmentRows, fields),
     "",
-    "## RONI 보조 참고",
+    "## MJJ-ASO 여름 전환형 부분집합",
     "",
-    sensitivityRows.length > 0
-      ? markdownTable(sensitivityRows, fields)
-      : "RONI만으로 추가되는 보조 사례가 없습니다.",
+    markdownTable(transitionRows, fields),
+    "",
+    "## RONI 보조 민감도",
+    "",
+    roniRows.length > 0 ? markdownTable(roniRows, fields) : "RONI 보조 표기 사례가 없습니다.",
   ].join("\n");
 }
 
@@ -482,6 +561,28 @@ function meanValue(rows, key) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function developmentYearTemperatureRows(analogRows) {
+  return sortAnalogRowsRecent(analogRows)
+    .filter(isOniDevelopmentFull)
+    .map((row) => ({
+      year: row.year,
+      onset: row.oni_episode_start || row.onset_proxy,
+      tavg_departure: signedFormat(numeric(row.jja_tavg_dep), 1, "°C"),
+      signs: row.jja_tavg_month_signs ?? "",
+    }));
+}
+
+function developmentYearPrecipitationRows(analogRows) {
+  return sortAnalogRowsRecent(analogRows)
+    .filter(isOniDevelopmentFull)
+    .map((row) => ({
+      year: row.year,
+      onset: row.oni_episode_start || row.onset_proxy,
+      precip_ratio: format(numeric(row.jja_precip_ratio), 0, "%"),
+      signs: row.jja_precip_month_signs ?? "",
+    }));
+}
+
 function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
   const jjaElNino = rowLookup(seasonRows, "season", "JJA", "El Nino");
   const sonElNino = rowLookup(seasonRows, "season", "SON", "El Nino");
@@ -495,8 +596,10 @@ function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
   const decemberElNino = rowLookup(monthRows, "month", 12, "El Nino");
   const januaryElNino = rowLookup(monthRows, "month", 1, "El Nino");
   const februaryElNino = rowLookup(monthRows, "month", 2, "El Nino");
-  const primaryAnalogRows = analogRows.filter(hasPrimaryOniSignal);
+  const primaryAnalogRows = sortAnalogRowsRecent(analogRows).filter(isOniDevelopmentFull);
+  const summerTransitionRows = sortAnalogRowsRecent(analogRows).filter(isOniSummerTransition);
   const analogCount = primaryAnalogRows.length;
+  const transitionCount = summerTransitionRows.length;
   const analogTempMean = meanValue(primaryAnalogRows, "jja_tavg_dep");
   const analogPrecipMean = meanValue(primaryAnalogRows, "jja_precip_ratio");
   const analogHotCount = primaryAnalogRows.filter(
@@ -518,7 +621,7 @@ function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
     {
       item: "판단 자료",
       content:
-        "관측된 ONI 위상별 남한 평균 기온·강수 통계, ONI 전환 유사해의 실제 여름 결과, AO·NAO·해빙·유라시아 눈덮임 관측값만 사용한다.",
+        "관측된 ONI 위상별 남한 평균 기온·강수 통계, ONI 발달해 전체와 MJJ-ASO 여름 전환형 부분집합의 실제 여름 결과, AO·NAO·해빙·유라시아 눈덮임 관측값만 사용한다.",
     },
     {
       item: "제외 자료",
@@ -531,11 +634,11 @@ function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
     {
       topic: "여름 기온",
       answer: "ONI 관측 통계만으로는 여름 고온이나 폭염을 단정하기 어렵다.",
-      evidence: `과거 ONI 엘니뇨 JJA는 평균기온 편차 ${signedFormat(
+      evidence: `과거 ONI 엘니뇨 JJA 계절연도는 평균기온 편차 ${signedFormat(
         numeric(jjaElNino?.tavg_departure_mean),
         1,
         "°C",
-      )}, 고온 비율 ${format(numeric(jjaElNino?.tavg_high_pct), 0, "%")}. ONI 전환 유사해 ${analogCount}개 평균 JJA 기온편차는 ${signedFormat(
+      )}, 고온 비율 ${format(numeric(jjaElNino?.tavg_high_pct), 0, "%")}. ONI 발달해 전체 ${analogCount}개 평균 JJA 기온편차는 ${signedFormat(
         analogTempMean,
         1,
         "°C",
@@ -547,7 +650,7 @@ function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
     {
       topic: "여름 강수",
       answer: "계절 누적 강수는 뚜렷한 다우·소우 한 방향으로 단정하지 않는다.",
-      evidence: `ONI 엘니뇨 JJA 강수 평년비는 ${format(
+      evidence: `ONI 엘니뇨 JJA 계절연도 강수 평년비는 ${format(
         numeric(jjaElNino?.precip_ratio_pct),
         0,
         "%",
@@ -555,7 +658,7 @@ function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
         numeric(julyElNino?.precip_ratio_pct),
         0,
         "%",
-      )}, 8월 ${format(numeric(augustElNino?.precip_ratio_pct), 0, "%")}로 방향이 일정하지 않음. ONI 전환 유사해 평균 강수 평년비는 ${format(
+      )}, 8월 ${format(numeric(augustElNino?.precip_ratio_pct), 0, "%")}로 방향이 일정하지 않음. ONI 발달해 전체 평균 강수 평년비는 ${format(
         analogPrecipMean,
         0,
         "%",
@@ -618,6 +721,28 @@ function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
       confidence: "중간~높음",
     },
   ];
+  const criteriaRows = [
+    {
+      criterion: "ONI 발달해 전체",
+      definition: "1979년 이후 ONI warm episode 시작이 AMJ~SON인 해",
+      use: "기본 유사해 판단",
+      n: analogCount,
+    },
+    {
+      criterion: "MJJ-ASO 여름 전환형",
+      definition: "ONI warm episode 시작이 MJJ~ASO인 해",
+      use: "여름 중 전환 질문의 부분집합",
+      n: transitionCount,
+    },
+    {
+      criterion: "RONI 보조",
+      definition: "RONI onset은 민감도 표기로만 사용",
+      use: "ONI 판단의 보조 확인",
+      n: analogRows.filter(isRoniAuxiliary).length,
+    },
+  ];
+  const temperatureRows = developmentYearTemperatureRows(analogRows);
+  const precipitationRows = developmentYearPrecipitationRows(analogRows);
 
   return [
     "## 예시 답변: 2026년 4월 현재 엘니뇨 발달 가능성과 한반도 영향",
@@ -637,6 +762,15 @@ function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
       { key: "content", label: "적용 내용" },
     ]),
     "",
+    "### 기준 분리",
+    "",
+    markdownTable(criteriaRows, [
+      { key: "criterion", label: "기준" },
+      { key: "definition", label: "정의" },
+      { key: "use", label: "사용" },
+      { key: "n", label: "표본" },
+    ]),
+    "",
     "### 항목별 답변",
     "",
     markdownTable(answerRows, [
@@ -645,6 +779,24 @@ function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
       { key: "evidence", label: "근거" },
       { key: "caution", label: "주의" },
       { key: "confidence", label: "신뢰도" },
+    ]),
+    "",
+    "### ONI 발달해 전체: JJA 기온",
+    "",
+    markdownTable(temperatureRows, [
+      { key: "year", label: "연도" },
+      { key: "onset", label: "ONI episode 시작" },
+      { key: "tavg_departure", label: "JJA 기온편차" },
+      { key: "signs", label: "6~8월 기온 부호" },
+    ]),
+    "",
+    "### ONI 발달해 전체: JJA 강수",
+    "",
+    markdownTable(precipitationRows, [
+      { key: "year", label: "연도" },
+      { key: "onset", label: "ONI episode 시작" },
+      { key: "precip_ratio", label: "JJA 강수 평년비" },
+      { key: "signs", label: "6~8월 강수 부호" },
     ]),
     "",
     "### 대외 설명 문구",
@@ -867,6 +1019,11 @@ function buildResponseSystemIndex() {
       purpose: "실제 질문별 짧은 답, 근거, 반대근거, 실무 문구",
       use: "대외·내부 Q&A 초안",
     },
+    {
+      file: "2026_summer_enso_korea_objective_response.md",
+      purpose: "2026년 4월 엘니뇨 발달 시나리오에 대한 관측자료 기반 예시 답변",
+      use: "실제 문의 대응 예시",
+    },
   ];
 
   return [
@@ -895,6 +1052,7 @@ function buildResponseSystemIndex() {
 export function buildResponseDocuments({
   monthRows,
   seasonRows,
+  seasonMonthSampleRows = [],
   analogRows = [],
   currentContextText = "",
   stationPolicy = DEFAULT_STATION_POLICY,
@@ -902,7 +1060,10 @@ export function buildResponseDocuments({
   return {
     "evidence_registry.md": `${buildEvidenceRegistry(stationPolicy)}\n`,
     "monthly_effect_table.md": `${buildMonthlyEffectTable(monthRows)}\n`,
-    "seasonal_effect_table.md": `${buildSeasonalEffectTable(seasonRows)}\n`,
+    "seasonal_effect_table.md": `${buildSeasonalEffectTable(
+      seasonRows,
+      seasonMonthSampleRows,
+    )}\n`,
     "climate_factor_modifier_table.md": `${buildClimateFactorModifierTable(
       currentContextText,
       analogRows,
@@ -910,11 +1071,16 @@ export function buildResponseDocuments({
     "analog_year_cards.md": `${buildAnalogYearCards(analogRows)}\n`,
     "changma_typhoon_reference.md": `${buildChangmaTyphoonReference()}\n`,
     "question_answer_matrix.md": `${buildQuestionAnswerMatrix(monthRows, seasonRows)}\n`,
+    "2026_summer_enso_korea_objective_response.md": `${buildExampleScenarioResponse(
+      monthRows,
+      seasonRows,
+      analogRows,
+    )}\n`,
     "response_system_index.md": `${buildResponseSystemIndex()}\n`,
   };
 }
 
-export function buildCombinedResponseSystem(documents, { exampleResponse = "" } = {}) {
+export function buildCombinedResponseSystem(documents) {
   const quickUseRows = [
     {
       situation: "엘니뇨가 발달하면 여름에 비가 많은가?",
@@ -967,8 +1133,6 @@ export function buildCombinedResponseSystem(documents, { exampleResponse = "" } 
     "npm run build:enso-response",
     "```",
     "",
-    exampleResponse.trim(),
-    "",
     "---",
     "",
     ...sections.map((section, index) =>
@@ -989,10 +1153,21 @@ async function readOptionalText(filePath) {
   }
 }
 
+async function readOptionalCsv(filePath) {
+  try {
+    return await readCsv(filePath);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+}
+
 export async function buildResponseSystem({
   baseDir = ".",
   outputDir = "data/output/final/enso_response_system",
-  combinedOutputPath = "ENSO_RESPONSE_SYSTEM.md",
+  combinedOutputPath = "data/output/final/enso_response_system/ENSO_RESPONSE_SYSTEM.md",
   stationPolicy = DEFAULT_STATION_POLICY,
 } = {}) {
   const absoluteBase = resolve(baseDir);
@@ -1002,11 +1177,14 @@ export async function buildResponseSystem({
   const seasonRows = await readCsv(
     resolve(absoluteBase, "data/output/final/enso_analysis/enso_season_phase_summary.md"),
   );
+  const seasonMonthSampleRows = await readOptionalCsv(
+    resolve(absoluteBase, "data/output/final/enso_analysis/enso_season_month_sample_summary.md"),
+  );
   const analogRows = await readCsv(
     resolve(absoluteBase, "data/output/final/elnino_summer_2026/analog_year_metrics.csv"),
   );
   const currentContextText = await readOptionalText(
-    resolve(absoluteBase, "data/output/final/elnino_summer_2026/2026_summer_el_nino_transition_brief.md"),
+    resolve(absoluteBase, "data/output/final/summer_outlook/oni_elnino_development_cryosphere_ao_analog_2026.md"),
   );
   const extraContextText = await readOptionalText(
     resolve(absoluteBase, "data/output/final/summer_outlook/current_sst_cryosphere_ao_analog_reference_2026.md"),
@@ -1015,11 +1193,11 @@ export async function buildResponseSystem({
   const documents = buildResponseDocuments({
     monthRows,
     seasonRows,
+    seasonMonthSampleRows,
     analogRows,
     currentContextText: `${currentContextText}\n${extraContextText}`,
     stationPolicy,
   });
-  const exampleResponse = buildExampleScenarioResponse(monthRows, seasonRows, analogRows);
 
   const absoluteOutput = resolve(absoluteBase, outputDir);
   await mkdir(absoluteOutput, { recursive: true });
@@ -1029,7 +1207,7 @@ export async function buildResponseSystem({
 
   const combinedFile = resolve(absoluteBase, combinedOutputPath);
   await mkdir(dirname(combinedFile), { recursive: true });
-  await writeFile(combinedFile, buildCombinedResponseSystem(documents, { exampleResponse }), "utf8");
+  await writeFile(combinedFile, buildCombinedResponseSystem(documents), "utf8");
 
   return {
     outputDir: absoluteOutput,

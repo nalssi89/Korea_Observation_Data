@@ -15,6 +15,7 @@
 | analog_year_cards.md | ONI 중심 유사해와 RONI 보조 사례 | 과거 유사해 질문 대응 |
 | changma_typhoon_reference.md | 장마·태풍을 ONI 직접효과와 분리하는 해석표 | 장마, 집중호우, 태풍 질문 대응 |
 | question_answer_matrix.md | 실제 질문별 짧은 답, 근거, 반대근거, 실무 문구 | 대외·내부 Q&A 초안 |
+| 2026_summer_enso_korea_objective_response.md | 2026년 4월 엘니뇨 발달 시나리오에 대한 관측자료 기반 예시 답변 | 실제 문의 대응 예시 |
 
 ## 재생성
 

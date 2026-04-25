@@ -49,7 +49,7 @@ npm run build:enso-response
 
 Use this single file first:
 
-- `../ENSO_RESPONSE_SYSTEM.md`
+- `data/output/final/enso_response_system/ENSO_RESPONSE_SYSTEM.md`
 
 It includes a worked 2026 April example covering summer temperature,
 summer precipitation, typhoon influence, autumn, and winter.
@@ -59,6 +59,8 @@ analog outcomes only.
 
 The detailed source tables are also written to:
 
+- `data/output/final/enso_response_system/ENSO_RESPONSE_SYSTEM.md`
+- `data/output/final/enso_response_system/2026_summer_enso_korea_objective_response.md`
 - `data/output/final/enso_response_system/response_system_index.md`
 - `data/output/final/enso_response_system/evidence_registry.md`
 - `data/output/final/enso_response_system/monthly_effect_table.md`
@@ -67,6 +69,13 @@ The detailed source tables are also written to:
 - `data/output/final/enso_response_system/analog_year_cards.md`
 - `data/output/final/enso_response_system/changma_typhoon_reference.md`
 - `data/output/final/enso_response_system/question_answer_matrix.md`
+- `data/output/final/elnino_summer_2026/analog_year_metrics_manifest.md`
+
+`build:enso-response` regenerates the ONI association summaries, the analog
+metrics table, the manifest, the detailed response-system tables, and the
+canonical single-file response inside this repository. Older files one level
+above this repository are treated only as convenience copies, not canonical
+outputs.
 
 The system uses ONI as the primary ENSO index, keeps RONI as an auxiliary
 sensitivity check, excludes Tibetan snow cover, and preserves the existing

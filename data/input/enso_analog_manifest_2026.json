@@ -1,0 +1,192 @@
+{
+  "version": "2026-04-25",
+  "purpose": "Reproducible manifest for ONI-primary ENSO analog metrics used by the response system.",
+  "local_inputs": {
+    "south_korea_monthly": "data/output/final/south_korea_fixed_1991_2020_comparison.md",
+    "enso_onset_candidates": "data/output/final/elnino_summer_2026/enso_onset_candidates.csv"
+  },
+  "external_references": {
+    "oni": "NOAA/CPC ONI v5 and ASCII table",
+    "roni": "NOAA/CPC RONI table",
+    "ao": "NOAA/CPC monthly AO index",
+    "nao": "NOAA/CPC monthly NAO index",
+    "sea_ice": "NSIDC Sea Ice Index v4",
+    "snow_cover": "Rutgers Global Snow Lab Eurasia snow-cover extent",
+    "typhoon": "NOAA/NCEI IBTrACS v04r01 Western Pacific best track"
+  },
+  "criteria": {
+    "oni_development_full": "ONI warm episode starts in AMJ, MJJ, JJA, JAS, ASO, or SON, with year >= 1979 for high-latitude comparability.",
+    "oni_summer_transition": "ONI warm episode starts in MJJ, JJA, JAS, or ASO. Pre-1979 rows are retained as South Korea observation supplements but not as full high-latitude analogs.",
+    "roni_auxiliary": "RONI onsets are retained only as auxiliary sensitivity labels and never replace ONI-primary classification.",
+    "roni_only_sensitivity": "RONI summer auxiliary onset exists but the year is not selected by ONI development-year or ONI summer-transition criteria."
+  },
+  "auxiliary_metrics_by_year": {
+    "1976": {
+      "transition_distance_to_2026": "",
+      "ao_jfm": "0.7592",
+      "nao_jfm": "0.4767",
+      "ao_mar": "0.5871",
+      "nao_mar": "0.7500"
+    },
+    "1977": {
+      "transition_distance_to_2026": "",
+      "ao_jfm": "-1.8110",
+      "nao_jfm": "-0.7800",
+      "ao_mar": "0.3445",
+      "nao_mar": "-0.8100"
+    },
+    "1986": {
+      "transition_distance_to_2026": "1.7702",
+      "ao_jfm": "-0.5136",
+      "nao_jfm": "0.6067",
+      "ao_mar": "1.9308",
+      "nao_mar": "1.7100",
+      "arctic_jfm": "15.5267",
+      "barents_jfm": "0.9018",
+      "kara_jfm": "0.9174",
+      "arctic_jfm_z": "1.9499",
+      "barents_jfm_z": "1.3450",
+      "kara_jfm_z": "0.5464"
+    },
+    "1991": {
+      "transition_distance_to_2026": "1.8272",
+      "ao_jfm": "-0.2265",
+      "nao_jfm": "0.5667",
+      "ao_mar": "-0.5268",
+      "nao_mar": "-0.2000",
+      "arctic_jfm": "15.0100",
+      "barents_jfm": "0.7513",
+      "kara_jfm": "0.9180",
+      "arctic_jfm_z": "0.8330",
+      "barents_jfm_z": "0.4427",
+      "kara_jfm_z": "0.5744"
+    },
+    "1994": {
+      "transition_distance_to_2026": "1.6579",
+      "high_latitude_distance": "1.31",
+      "sst_distance": "0.96",
+      "ao_jfm": "0.2439",
+      "nao_jfm": "0.9200",
+      "ao_mar": "1.8810",
+      "nao_mar": "1.2600",
+      "arctic_jfm": "15.2800",
+      "barents_jfm": "0.8964",
+      "kara_jfm": "0.9180",
+      "arctic_jfm_z": "1.4167",
+      "barents_jfm_z": "1.3126",
+      "kara_jfm_z": "0.5734",
+      "typhoon_near_korea_count": "5",
+      "typhoon_reference": "브렌던, 세스, 월트, 더그, 프레드"
+    },
+    "1997": {
+      "high_latitude_distance": "1.27",
+      "sst_distance": "0.40",
+      "typhoon_near_korea_count": "4",
+      "typhoon_reference": "티나, 피터, 로지, 올리와"
+    },
+    "2002": {
+      "transition_distance_to_2026": "1.6046",
+      "high_latitude_distance": "1.51",
+      "sst_distance": "0.34",
+      "ao_jfm": "1.1956",
+      "nao_jfm": "0.7433",
+      "ao_mar": "0.9020",
+      "nao_mar": "0.6900",
+      "arctic_jfm": "14.9867",
+      "barents_jfm": "0.7867",
+      "kara_jfm": "0.9179",
+      "arctic_jfm_z": "0.7826",
+      "barents_jfm_z": "0.6551",
+      "kara_jfm_z": "0.5708",
+      "typhoon_near_korea_count": "5",
+      "typhoon_reference": "루사, 라마순, 펑선 등"
+    },
+    "2004": {
+      "transition_distance_to_2026": "1.5151",
+      "high_latitude_distance": "0.71",
+      "sst_distance": "0.92",
+      "ao_jfm": "-0.9654",
+      "nao_jfm": "0.1967",
+      "ao_mar": "0.3181",
+      "nao_mar": "1.0200",
+      "arctic_jfm": "14.6433",
+      "barents_jfm": "0.8796",
+      "kara_jfm": "0.9180",
+      "arctic_jfm_z": "0.0404",
+      "barents_jfm_z": "1.2120",
+      "kara_jfm_z": "0.5748",
+      "typhoon_near_korea_count": "5",
+      "typhoon_reference": "민들레, 메기, 남테운, 송다, 차바 등"
+    },
+    "2006": {
+      "transition_distance_to_2026": "2.0626",
+      "ao_jfm": "-0.6434",
+      "nao_jfm": "-0.1745",
+      "ao_mar": "-1.6038",
+      "nao_mar": "-1.2779",
+      "arctic_jfm": "14.0700",
+      "barents_jfm": "0.5459",
+      "kara_jfm": "0.9094",
+      "arctic_jfm_z": "-1.1991",
+      "barents_jfm_z": "-0.7894",
+      "kara_jfm_z": "0.1300"
+    },
+    "2009": {
+      "transition_distance_to_2026": "1.3458",
+      "high_latitude_distance": "1.41",
+      "sst_distance": "1.11",
+      "ao_jfm": "0.0829",
+      "nao_jfm": "0.2071",
+      "ao_mar": "0.1213",
+      "nao_mar": "0.5723",
+      "arctic_jfm": "14.5667",
+      "barents_jfm": "0.6256",
+      "kara_jfm": "0.9082",
+      "arctic_jfm_z": "-0.1254",
+      "barents_jfm_z": "-0.3113",
+      "kara_jfm_z": "0.0679",
+      "typhoon_near_korea_count": "1",
+      "typhoon_reference": "모라꼿"
+    },
+    "2014": {
+      "high_latitude_distance": "0.86",
+      "sst_distance": "0.63",
+      "typhoon_near_korea_count": "5",
+      "typhoon_reference": "나크리, 풍웡, 마트모, 너구리 등"
+    },
+    "2018": {
+      "transition_distance_to_2026": "1.6908",
+      "high_latitude_distance": "1.48",
+      "sst_distance": "1.26",
+      "ao_jfm": "-0.3697",
+      "nao_jfm": "0.6977",
+      "ao_mar": "-0.9411",
+      "nao_mar": "-0.9269",
+      "arctic_jfm": "13.7833",
+      "barents_jfm": "0.4818",
+      "kara_jfm": "0.8960",
+      "arctic_jfm_z": "-1.8188",
+      "barents_jfm_z": "-1.1739",
+      "kara_jfm_z": "-0.5621",
+      "typhoon_near_korea_count": "6",
+      "typhoon_reference": "솔릭, 콩레이, 쁘라삐룬 등"
+    },
+    "2023": {
+      "transition_distance_to_2026": "1.6994",
+      "high_latitude_distance": "1.16",
+      "sst_distance": "0.46",
+      "ao_jfm": "0.4021",
+      "nao_jfm": "0.3547",
+      "ao_mar": "0.2803",
+      "nao_mar": "-1.1088",
+      "arctic_jfm": "13.9933",
+      "barents_jfm": "0.4079",
+      "kara_jfm": "0.9039",
+      "arctic_jfm_z": "-1.3648",
+      "barents_jfm_z": "-1.6175",
+      "kara_jfm_z": "-0.1547",
+      "typhoon_near_korea_count": "1",
+      "typhoon_reference": "카눈"
+    }
+  }
+}

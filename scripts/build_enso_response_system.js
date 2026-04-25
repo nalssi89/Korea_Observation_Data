@@ -1,7 +1,8 @@
 import { buildResponseSystem } from "../src/enso-response-system.js";
 
 const outputDir = process.argv[2] ?? "data/output/final/enso_response_system";
-const combinedOutputPath = process.argv[3] ?? "ENSO_RESPONSE_SYSTEM.md";
+const combinedOutputPath =
+  process.argv[3] ?? "data/output/final/enso_response_system/ENSO_RESPONSE_SYSTEM.md";
 
 const result = await buildResponseSystem({ outputDir, combinedOutputPath });
 

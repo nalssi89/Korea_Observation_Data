@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { buildResponseDocuments, buildResponseSystem } from "../src/enso-response-system.js";
-import { writeCsv } from "../src/csv.js";
+import { readCsv, writeCsv } from "../src/csv.js";
 
 const monthRows = [
   {
@@ -82,17 +82,35 @@ const seasonRows = [
   },
 ];
 
+const seasonMonthSampleRows = [
+  {
+    season: "JJA",
+    phase: "El Nino",
+    n: "28",
+    tavg_departure_mean: "-0.2736",
+    precip_ratio_pct: "104.6074",
+  },
+];
+
 const analogRows = [
   {
     year: "2009",
+    analysis_tier: "ONI development-year full; MJJ-ASO summer-transition subset",
+    oni_development_full: "Y",
+    oni_summer_transition: "Y",
+    roni_auxiliary: "Y",
+    roni_only_sensitivity: "",
+    oni_episode_start: "JAS 2009",
     onset_proxy: "ONI JAS(+0.6); RONI ASO(+0.6)",
-    distance_to_2026: "1.3458",
+    transition_distance_to_2026: "1.3458",
     jja_tavg: "23.1311",
     jja_tavg_dep: "-0.5754",
+    jja_tavg_month_signs: "0/-/-",
     jja_tmax: "27.8998",
     jja_tmax_dep: "-0.5602",
     jja_precip: "783.6919",
     jja_precip_ratio: "107.7687",
+    jja_precip_month_signs: "0/+/-",
     ao_jfm: "0.0829",
     nao_jfm: "0.2071",
     arctic_jfm_z: "-0.1254",
@@ -101,14 +119,22 @@ const analogRows = [
   },
   {
     year: "2023",
-    onset_proxy: "RONI JJA(+0.6)",
-    distance_to_2026: "1.6994",
+    analysis_tier: "ONI development-year full; RONI auxiliary noted",
+    oni_development_full: "Y",
+    oni_summer_transition: "",
+    roni_auxiliary: "Y",
+    roni_only_sensitivity: "",
+    oni_episode_start: "AMJ 2023",
+    onset_proxy: "ONI AMJ(+0.6); RONI JJA(+0.6)",
+    transition_distance_to_2026: "1.6994",
     jja_tavg: "24.7259",
     jja_tavg_dep: "1.0194",
+    jja_tavg_month_signs: "+/+/+",
     jja_tmax: "29.3118",
     jja_tmax_dep: "0.8518",
     jja_precip: "1015.6597",
     jja_precip_ratio: "139.6675",
+    jja_precip_month_signs: "+/+/0",
     ao_jfm: "0.4021",
     nao_jfm: "0.3547",
     arctic_jfm_z: "-1.3648",
@@ -122,10 +148,15 @@ test("response documents use ONI as the default and keep RONI auxiliary", () => 
 
   assert.match(documents["monthly_effect_table.md"], /기본 지표는 ONI입니다/u);
   assert.match(documents["monthly_effect_table.md"], /RONI는 이 표의 phase 판정에 쓰지 않습니다/u);
-  assert.match(documents["analog_year_cards.md"], /ONI 기본 유사해/u);
-  assert.match(documents["analog_year_cards.md"], /RONI 보조 참고/u);
-  assert.match(documents["analog_year_cards.md"], /\| 2009 \| ONI 기본/u);
-  assert.match(documents["analog_year_cards.md"], /\| 2023 \| RONI 보조/u);
+  assert.match(documents["analog_year_cards.md"], /ONI 발달해 전체/u);
+  assert.match(documents["analog_year_cards.md"], /MJJ-ASO 여름 전환형 부분집합/u);
+  assert.match(documents["analog_year_cards.md"], /RONI 보조 민감도/u);
+  assert.match(documents["analog_year_cards.md"], /\| 2023 \| ONI 발달해 전체/u);
+  assert.match(documents["analog_year_cards.md"], /\| 2009 \| MJJ-ASO 여름 전환형/u);
+  assert.match(
+    documents["2026_summer_enso_korea_objective_response.md"],
+    /\| 2023 \| AMJ 2023 \| \+1\.0°C \| \+\/\+\/\+ \|/u,
+  );
 });
 
 test("response documents exclude Tibetan snow from climate modifiers", () => {
@@ -165,10 +196,14 @@ test("buildResponseSystem writes the expected markdown artifacts", async () => {
   const directory = await mkdtemp(join(tmpdir(), "kod-enso-response-"));
   await writeCsv(join(directory, "data/output/final/enso_analysis/enso_month_phase_summary.md"), monthRows);
   await writeCsv(join(directory, "data/output/final/enso_analysis/enso_season_phase_summary.md"), seasonRows);
+  await writeCsv(
+    join(directory, "data/output/final/enso_analysis/enso_season_month_sample_summary.md"),
+    seasonMonthSampleRows,
+  );
   await writeCsv(join(directory, "data/output/final/elnino_summer_2026/analog_year_metrics.csv"), analogRows);
 
   const result = await buildResponseSystem({ baseDir: directory });
-  assert.equal(result.files.length, 8);
+  assert.equal(result.files.length, 9);
 
   const registry = await readFile(
     join(directory, "data/output/final/enso_response_system/evidence_registry.md"),
@@ -183,6 +218,7 @@ test("buildResponseSystem writes the expected markdown artifacts", async () => {
   assert.match(combined, /RONI는 보조 민감도 확인/u);
   assert.match(combined, /장마·태풍 별도 해석 참고표/u);
   assert.match(combined, /예시 답변: 2026년 4월 현재 엘니뇨 발달 가능성과 한반도 영향/u);
+  assert.match(combined, /ONI 발달해 전체: JJA 기온/u);
   assert.match(combined, /가을은 엘니뇨 지속 시 소우 쪽 신호/u);
   assert.match(combined, /겨울은 고온·다우 쪽 신호/u);
   assert.match(combined, /기관 공식 기온·강수 전망/u);
@@ -190,4 +226,33 @@ test("buildResponseSystem writes the expected markdown artifacts", async () => {
   assert.doesNotMatch(combined, /KMA 여름 전망/u);
   assert.doesNotMatch(combined, /고온 확률 60/u);
   assert.doesNotMatch(combined, /KMA 2026년 여름 기후전망/u);
+});
+
+test("real analog metrics keep 2023 in the ONI development-year set", async () => {
+  const rows = await readCsv("data/output/final/elnino_summer_2026/analog_year_metrics.csv");
+  const row2023 = rows.find((row) => row.year === "2023");
+
+  assert.ok(row2023);
+  assert.equal(row2023.oni_development_full, "Y");
+  assert.equal(row2023.oni_summer_transition, "");
+  assert.match(row2023.onset_proxy, /ONI AMJ\(\+0\.6\)/u);
+  assert.equal(row2023.jja_tavg_month_signs, "+/+/+");
+  assert.equal(row2023.jja_precip_month_signs, "+/+/0");
+});
+
+test("real ENSO season summaries separate complete seasons from month samples", async () => {
+  const seasonRowsReal = await readCsv("data/output/final/enso_analysis/enso_season_phase_summary.md");
+  const monthSampleRowsReal = await readCsv(
+    "data/output/final/enso_analysis/enso_season_month_sample_summary.md",
+  );
+  const jjaSeason = seasonRowsReal.find(
+    (row) => row.season === "JJA" && row.phase === "El Nino",
+  );
+  const jjaMonthSample = monthSampleRowsReal.find(
+    (row) => row.season === "JJA" && row.phase === "El Nino",
+  );
+
+  assert.ok(jjaSeason);
+  assert.ok(jjaMonthSample);
+  assert.notEqual(jjaSeason.n, jjaMonthSample.n);
 });
