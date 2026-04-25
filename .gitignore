@@ -7,6 +7,7 @@
 node_modules/
 .npm/
 .cache/
+.venv-pdf/
 
 # Raw and intermediate data are reproducible and too large for normal Git commits.
 data/raw/

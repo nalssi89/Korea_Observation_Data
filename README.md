@@ -72,6 +72,19 @@ The detailed source tables are also written to:
 - `data/output/final/enso_response_system/enso_public_communication_guide.md`
 - `data/output/final/elnino_summer_2026/analog_year_metrics_manifest.md`
 
+Generate the PDF manuals:
+
+```bash
+.venv-pdf/bin/python scripts/build_enso_manuals.py
+```
+
+Manual outputs:
+
+- `data/output/final/enso_manuals/el_nino_response_manual.md`
+- `data/output/final/enso_manuals/la_nina_response_manual.md`
+- `output/pdf/enso_manuals/el_nino_response_manual.pdf`
+- `output/pdf/enso_manuals/la_nina_response_manual.pdf`
+
 `build:enso-response` regenerates the ONI association summaries, the analog
 metrics table, the manifest, the detailed response-system tables, and the
 canonical single-file response inside this repository. Older files one level
