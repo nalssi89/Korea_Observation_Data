@@ -346,6 +346,7 @@ function aggregateSeasonYearRows(analysisRows) {
         precip_observed: precipObserved,
         precip_normal: precipNormal,
         precip_departure: precipDeparture,
+        precip_ratio_pct: precipRatio,
         precip_sign: signFromRatio(precipRatio),
       });
     }
@@ -406,6 +407,28 @@ const seasonLifecycleSummary = summarizeGroup(seasonLifecycleRows, [
   "phase",
   "lifecycle_stage",
 ]);
+const activeSeasonYearRows = seasonYearRows
+  .filter((row) => row.phase !== "Neutral")
+  .map((row) => ({
+    year: row.year,
+    season: row.season,
+    phase: row.phase,
+    lifecycle_stage: row.lifecycle_stage,
+    oni: round(row.oni, 1),
+    tavg_departure: round(row.tavg_departure, 4),
+    tavg_sign: row.tavg_sign,
+    precip_observed: round(row.precip_observed, 4),
+    precip_normal: round(row.precip_normal, 4),
+    precip_departure: round(row.precip_departure, 4),
+    precip_ratio_pct: round(row.precip_ratio_pct, 4),
+    precip_sign: row.precip_sign,
+  }))
+  .sort((left, right) => {
+    const yearDiff = right.year - left.year;
+    if (yearDiff !== 0) return yearDiff;
+    const seasonOrder = { DJF: 0, MAM: 1, JJA: 2, SON: 3 };
+    return (seasonOrder[left.season] ?? 9) - (seasonOrder[right.season] ?? 9);
+  });
 
 const lagCorrelationRows = [];
 for (let lag = 0; lag <= 6; lag += 1) {
@@ -554,6 +577,27 @@ const report = [
     "precip_wet_pct",
   ]),
   "",
+  "## ENSO 영향 계절연도 상세표",
+  "",
+  "- 이 표는 episode 시작연도가 아니라 해당 계절 자체가 ONI El Nino 또는 La Nina phase였는지를 기준으로 합니다.",
+  "- 예를 들어 1987년은 episode 시작연도가 아니어도 JJA와 DJF 등 실제 계절이 엘니뇨 phase이므로 포함됩니다.",
+  "- 2022년은 2021년에 시작한 라니냐가 지속된 해이므로 JJA와 DJF 등 실제 라니냐 계절연도에 포함됩니다.",
+  "",
+  markdownTable(
+    activeSeasonYearRows.filter((row) => ["DJF", "JJA"].includes(row.season)),
+    [
+      "year",
+      "season",
+      "phase",
+      "lifecycle_stage",
+      "oni",
+      "tavg_departure",
+      "tavg_sign",
+      "precip_ratio_pct",
+      "precip_sign",
+    ],
+  ),
+  "",
   "## 활용상 주의",
   "",
   "- ENSO는 한반도 기온·강수의 단독 설명변수가 아닙니다. 서태평양 대류, 북태평양고기압, 유라시아 눈덮임, 북극진동, 장마전선, 태풍 경로 등과 함께 해석해야 합니다.",
@@ -568,6 +612,7 @@ await writeCsv(resolve(outputDir, "enso_season_phase_summary.md"), seasonPhaseSu
 await writeCsv(resolve(outputDir, "enso_lifecycle_phase_summary.md"), lifecyclePhaseSummary);
 await writeCsv(resolve(outputDir, "enso_month_lifecycle_summary.md"), monthLifecycleSummary);
 await writeCsv(resolve(outputDir, "enso_season_lifecycle_summary.md"), seasonLifecycleSummary);
+await writeCsv(resolve(outputDir, "enso_active_season_years.md"), activeSeasonYearRows);
 await writeCsv(
   resolve(outputDir, "enso_season_month_sample_summary.md"),
   seasonMonthSampleSummary,

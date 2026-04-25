@@ -121,6 +121,31 @@ const lifecycleRows = [
   },
 ];
 
+const activeSeasonRows = [
+  {
+    year: "1987",
+    season: "JJA",
+    phase: "El Nino",
+    lifecycle_stage: "Development",
+    oni: "1.7",
+    tavg_departure: "-0.2",
+    tavg_sign: "-",
+    precip_ratio_pct: "106.0",
+    precip_sign: "0",
+  },
+  {
+    year: "2022",
+    season: "JJA",
+    phase: "La Nina",
+    lifecycle_stage: "Decay",
+    oni: "-0.9",
+    tavg_departure: "0.9",
+    tavg_sign: "+",
+    precip_ratio_pct: "120.0",
+    precip_sign: "+",
+  },
+];
+
 const analogRows = [
   {
     year: "2009",
@@ -173,10 +198,19 @@ const analogRows = [
 ];
 
 test("response documents use ONI as the default and keep RONI auxiliary", () => {
-  const documents = buildResponseDocuments({ monthRows, seasonRows, lifecycleRows, analogRows });
+  const documents = buildResponseDocuments({
+    monthRows,
+    seasonRows,
+    lifecycleRows,
+    activeSeasonRows,
+    analogRows,
+  });
 
   assert.match(documents["monthly_effect_table.md"], /기본 지표는 ONI입니다/u);
   assert.match(documents["monthly_effect_table.md"], /RONI는 이 표의 phase 판정에 쓰지 않습니다/u);
+  assert.match(documents["active_season_year_table.md"], /1987년처럼 전년부터 이어진 엘니뇨/u);
+  assert.match(documents["active_season_year_table.md"], /\| 1987 \| 엘니뇨 \| 발달기/u);
+  assert.match(documents["active_season_year_table.md"], /\| 2022 \| 라니냐 \| 소멸기/u);
   assert.match(documents["lifecycle_effect_table.md"], /ONI 발달기·소멸기별/u);
   assert.match(documents["lifecycle_effect_table.md"], /엘니뇨 \| 발달기/u);
   assert.match(documents["lifecycle_effect_table.md"], /라니냐 \| 소멸기/u);
@@ -245,10 +279,14 @@ test("buildResponseSystem writes the expected markdown artifacts", async () => {
     join(directory, "data/output/final/enso_analysis/enso_season_lifecycle_summary.md"),
     lifecycleRows,
   );
+  await writeCsv(
+    join(directory, "data/output/final/enso_analysis/enso_active_season_years.md"),
+    activeSeasonRows,
+  );
   await writeCsv(join(directory, "data/output/final/elnino_summer_2026/analog_year_metrics.csv"), analogRows);
 
   const result = await buildResponseSystem({ baseDir: directory });
-  assert.equal(result.files.length, 11);
+  assert.equal(result.files.length, 12);
 
   const registry = await readFile(
     join(directory, "data/output/final/enso_response_system/evidence_registry.md"),
@@ -260,6 +298,7 @@ test("buildResponseSystem writes the expected markdown artifacts", async () => {
   assert.match(combined, /ENSO 한반도 영향 대응체계 종합본/u);
   assert.match(combined, /이 파일 하나만 보면 됩니다/u);
   assert.match(combined, /ONI 기준 월별 기온·강수 영향표/u);
+  assert.match(combined, /ONI 영향 계절연도 상세표/u);
   assert.match(combined, /ONI 발달기·소멸기별 기온·강수 영향표/u);
   assert.match(combined, /RONI는 보조 민감도 확인/u);
   assert.match(combined, /장마·태풍 별도 해석 참고표/u);
@@ -325,4 +364,21 @@ test("real ENSO lifecycle summaries preserve development and decay effects", asy
   assert.ok(djfLaNinaDecay);
   assert.equal(jjaElNinoDevelopment.n, "9");
   assert.equal(djfLaNinaDecay.n, "14");
+});
+
+test("real active season years include continuing ENSO years", async () => {
+  const activeSeasonRowsReal = await readCsv(
+    "data/output/final/enso_analysis/enso_active_season_years.md",
+  );
+  const elNino1987 = activeSeasonRowsReal.find(
+    (row) => row.year === "1987" && row.season === "JJA" && row.phase === "El Nino",
+  );
+  const laNina2022 = activeSeasonRowsReal.find(
+    (row) => row.year === "2022" && row.season === "JJA" && row.phase === "La Nina",
+  );
+
+  assert.ok(elNino1987);
+  assert.ok(laNina2022);
+  assert.equal(elNino1987.lifecycle_stage, "Development");
+  assert.equal(laNina2022.lifecycle_stage, "Decay");
 });

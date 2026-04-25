@@ -147,6 +147,72 @@
 | SON | La Nina | Decay | 4 | 0.1957 | 75 | 66.2936 | 124.925 | 75 |
 | SON | La Nina | Development | 14 | -0.0451 | 42.8571 | 9.4408 | 103.5495 | 35.7143 |
 
+## ENSO 영향 계절연도 상세표
+
+- 이 표는 episode 시작연도가 아니라 해당 계절 자체가 ONI El Nino 또는 La Nina phase였는지를 기준으로 합니다.
+- 예를 들어 1987년은 episode 시작연도가 아니어도 JJA와 DJF 등 실제 계절이 엘니뇨 phase이므로 포함됩니다.
+- 2022년은 2021년에 시작한 라니냐가 지속된 해이므로 JJA와 DJF 등 실제 라니냐 계절연도에 포함됩니다.
+
+| year | season | phase | lifecycle_stage | oni | tavg_departure | tavg_sign | precip_ratio_pct | precip_sign |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2024 | DJF | El Nino | Decay | 1.9 | 1.9781 | + | 264.9422 | + |
+| 2023 | DJF | La Nina | Decay | -0.5 | -0.2806 | - | 78.9338 | - |
+| 2023 | JJA | El Nino | Development | 1.1 | 1.0194 | + | 139.6675 | + |
+| 2022 | DJF | La Nina | Development | -0.8 | -0.1458 | - | 14.7586 | - |
+| 2022 | JJA | La Nina | Decay | -0.8 | 0.8016 | + | 92.7688 | 0 |
+| 2021 | DJF | La Nina | Decay | -0.9 | 0.421 | + | 53.2189 | - |
+| 2020 | DJF | El Nino | Decay | 0.6 | 2.3259 | + | 187.8208 | + |
+| 2019 | DJF | El Nino | Decay | 0.9 | 0.5011 | + | 76.4253 | - |
+| 2018 | DJF | La Nina | Decay | -0.8 | -1.6016 | - | 83.6116 | - |
+| 2016 | DJF | El Nino | Decay | 2.6 | 0.649 | + | 124.5966 | + |
+| 2015 | DJF | El Nino | Development | 0.7 | -0.1234 | - | 85.7057 | - |
+| 2015 | JJA | El Nino | Development | 1.6 | -0.1532 | - | 53.7545 | - |
+| 2012 | DJF | La Nina | Decay | -0.7 | -1.2388 | - | 46.9314 | - |
+| 2011 | DJF | La Nina | Decay | -1.3 | -1.5172 | - | 108.198 | 0 |
+| 2010 | DJF | El Nino | Decay | 1.5 | -0.303 | - | 161.0041 | + |
+| 2010 | JJA | La Nina | Development | -1 | 0.9587 | + | 95.3492 | 0 |
+| 2009 | DJF | La Nina | Development | -0.8 | 0.9366 | + | 75.3486 | - |
+| 2009 | JJA | El Nino | Development | 0.5 | -0.5754 | - | 107.7687 | 0 |
+| 2008 | DJF | La Nina | Decay | -1.6 | -0.099 | - | 83.9813 | - |
+| 2007 | DJF | El Nino | Decay | 0.7 | 1.5716 | + | 84.0298 | - |
+| 2007 | JJA | La Nina | Development | -0.6 | -0.0886 | - | 91.5411 | 0 |
+| 2006 | DJF | La Nina | Development | -0.9 | -0.9411 | - | 85.0741 | - |
+| 2005 | DJF | El Nino | Decay | 0.6 | -0.2841 | - | 83.9795 | - |
+| 2004 | JJA | El Nino | Development | 0.5 | 0.1176 | + | 118.301 | + |
+| 2003 | DJF | El Nino | Decay | 0.9 | 0.1451 | + | 135.5099 | + |
+| 2002 | JJA | El Nino | Development | 0.8 | -0.7626 | - | 127.3802 | + |
+| 2001 | DJF | La Nina | Decay | -0.7 | -0.495 | - | 141.5605 | + |
+| 2000 | DJF | La Nina | Decay | -1.7 | -0.552 | - | 53.9384 | - |
+| 2000 | JJA | La Nina | Decay | -0.6 | 0.2826 | + | 110.5549 | + |
+| 1999 | DJF | La Nina | Development | -1.5 | 0.8064 | + | 46.6659 | - |
+| 1999 | JJA | La Nina | Development | -1.1 | -0.5659 | - | 112.3615 | + |
+| 1998 | DJF | El Nino | Decay | 2.2 | 1.127 | + | 160.7799 | + |
+| 1998 | JJA | La Nina | Development | -0.8 | -0.7916 | - | 140.7397 | + |
+| 1997 | JJA | El Nino | Development | 1.6 | 0.0812 | + | 101.9081 | 0 |
+| 1996 | DJF | La Nina | Decay | -0.9 | -1.4533 | - | 51.9556 | - |
+| 1995 | DJF | El Nino | Decay | 1 | -0.0398 | 0 | 63.2063 | - |
+| 1992 | DJF | El Nino | Development | 1.7 | 0.8836 | + | 127.3887 | + |
+| 1991 | JJA | El Nino | Development | 0.7 | -0.475 | - | 107.7678 | 0 |
+| 1989 | DJF | La Nina | Decay | -1.7 | 1.1504 | + | 217.9491 | + |
+| 1988 | DJF | El Nino | Decay | 0.8 | -0.3138 | - | 31.462 | - |
+| 1988 | JJA | La Nina | Development | -1.3 | -0.1644 | - | 73.6219 | - |
+| 1987 | DJF | El Nino | Development | 1.2 | 0.564 | + | 163.1285 | + |
+| 1987 | JJA | El Nino | Development | 1.5 | -0.597 | - | 145.1199 | + |
+| 1985 | DJF | La Nina | Decay | -1 | -1.2558 | - | 81.0297 | - |
+| 1985 | JJA | La Nina | Decay | -0.5 | 0.3148 | + | 100.8317 | 0 |
+| 1984 | DJF | La Nina | Decay | -0.6 | -2.7547 | - | 36.1444 | - |
+| 1983 | DJF | El Nino | Decay | 2.2 | -0.8115 | - | 89.324 | - |
+| 1982 | JJA | El Nino | Development | 0.8 | -0.3691 | - | 70.0956 | - |
+| 1980 | DJF | El Nino | Decay | 0.6 | -0.8891 | - | 93.3845 | 0 |
+| 1978 | DJF | El Nino | Decay | 0.7 | 0.1066 | + | 112.5912 | + |
+| 1977 | DJF | El Nino | Decay | 0.7 | -2.3056 | - | 55.2972 | - |
+| 1976 | DJF | La Nina | Decay | -1.6 | -0.2823 | - | 166.6964 | + |
+| 1975 | DJF | La Nina | Development | -0.5 | -0.6668 | - | 76.3414 | - |
+| 1975 | JJA | La Nina | Development | -1.1 | 0.0987 | + | 79.8586 | - |
+| 1974 | DJF | La Nina | Decay | -1.8 | -1.9984 | - | 80.3465 | - |
+| 1974 | JJA | La Nina | Decay | -0.5 | -1.3829 | - | 93.9071 | 0 |
+| 1973 | JJA | La Nina | Development | -1.1 | 0.775 | + | 51.9037 | - |
+
 ## 활용상 주의
 
 - ENSO는 한반도 기온·강수의 단독 설명변수가 아닙니다. 서태평양 대류, 북태평양고기압, 유라시아 눈덮임, 북극진동, 장마전선, 태풍 경로 등과 함께 해석해야 합니다.

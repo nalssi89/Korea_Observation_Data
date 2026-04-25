@@ -12,6 +12,7 @@ const COMBINED_DOCUMENT_ORDER = [
   "2026_summer_enso_korea_objective_response.md",
   "monthly_effect_table.md",
   "seasonal_effect_table.md",
+  "active_season_year_table.md",
   "lifecycle_effect_table.md",
   "climate_factor_modifier_table.md",
   "analog_year_cards.md",
@@ -200,6 +201,15 @@ function sortLifecycleRows(rows) {
       (lifecycleOrder[left.lifecycle_stage] ?? 9) -
       (lifecycleOrder[right.lifecycle_stage] ?? 9);
     if (stageDiff !== 0) return stageDiff;
+    return (seasonOrder[left.season] ?? 9) - (seasonOrder[right.season] ?? 9);
+  });
+}
+
+function sortActiveSeasonRows(rows) {
+  const seasonOrder = { DJF: 0, MAM: 1, JJA: 2, SON: 3 };
+  return [...rows].sort((left, right) => {
+    const yearDiff = (numeric(right.year) ?? 0) - (numeric(left.year) ?? 0);
+    if (yearDiff !== 0) return yearDiff;
     return (seasonOrder[left.season] ?? 9) - (seasonOrder[right.season] ?? 9);
   });
 }
@@ -394,6 +404,58 @@ function buildLifecycleEffectTable(lifecycleRows = []) {
   ].join("\n");
 }
 
+function buildActiveSeasonYearTable(activeSeasonRows = []) {
+  const targetRows = sortActiveSeasonRows(activeSeasonRows)
+    .filter((row) => ["DJF", "JJA"].includes(row.season))
+    .map((row) => ({
+      year: row.year,
+      season: row.season,
+      phase: PHASE_LABELS[row.phase] ?? row.phase,
+      lifecycle_stage: LIFECYCLE_LABELS[row.lifecycle_stage] ?? row.lifecycle_stage,
+      oni: signedFormat(numeric(row.oni), 1, "°C"),
+      tavg_departure: signedFormat(numeric(row.tavg_departure), 1, "°C"),
+      tavg_sign: row.tavg_sign,
+      precip_ratio: format(numeric(row.precip_ratio_pct), 0, "%"),
+      precip_sign: row.precip_sign,
+    }));
+
+  const summerRows = targetRows.filter((row) => row.season === "JJA");
+  const winterRows = targetRows.filter((row) => row.season === "DJF");
+  const fields = [
+    { key: "year", label: "연도" },
+    { key: "phase", label: "ONI 위상" },
+    { key: "lifecycle_stage", label: "단계" },
+    { key: "oni", label: "중심 ONI" },
+    { key: "tavg_departure", label: "기온편차" },
+    { key: "tavg_sign", label: "기온 부호" },
+    { key: "precip_ratio", label: "강수 평년비" },
+    { key: "precip_sign", label: "강수 부호" },
+  ];
+
+  return [
+    "# ONI 영향 계절연도 상세표",
+    "",
+    "- 이 표는 episode 시작연도가 아니라 해당 계절 자체가 ONI El Nino 또는 La Nina phase였는지를 기준으로 합니다.",
+    "- 여름·겨울 영향 질문에는 이 표를 우선 확인합니다.",
+    "- ONI 발달해 표는 ENSO가 새로 시작되는 해를 보는 표이고, 이 표는 실제 JJA/DJF가 ENSO 위상 안에 있었는지를 보는 표입니다.",
+    "- 따라서 1987년처럼 전년부터 이어진 엘니뇨 해와 2022년처럼 전년부터 이어진 라니냐 해도 포함합니다.",
+    "",
+    "## 여름 JJA 영향연도",
+    "",
+    summerRows.length > 0 ? markdownTable(summerRows, fields) : "JJA 영향연도 표본이 없습니다.",
+    "",
+    "## 겨울 DJF 영향연도",
+    "",
+    winterRows.length > 0 ? markdownTable(winterRows, fields) : "DJF 영향연도 표본이 없습니다.",
+    "",
+    "## 사용 원칙",
+    "",
+    "- '올여름/이번 겨울 ENSO 영향은?' 질문에는 활성 계절연도 표를 우선 사용합니다.",
+    "- '올해 ENSO가 발달한다면?' 질문에는 ONI 발달해 표를 함께 사용합니다.",
+    "- '발달기인가 소멸기인가?' 질문에는 lifecycle_effect_table.md를 함께 사용합니다.",
+  ].join("\n");
+}
+
 function extractContextValue(text, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   const match = text.match(new RegExp(`\\| ${escaped} \\| ([^|]+) \\|`, "u"));
@@ -505,6 +567,12 @@ function buildEvidenceRegistry(stationPolicy) {
       role: "episode 생애주기별 영향 보조 판단",
       source: "data/output/final/enso_analysis/enso_season_lifecycle_summary.md",
       rule: "El Nino는 첫 ONI 최댓값까지, La Nina는 첫 ONI 최솟값까지를 발달기로 두고 이후를 소멸기로 구분. 정점/저점은 발달기에 포함.",
+    },
+    {
+      item: "ONI 영향 계절연도",
+      role: "여름·겨울 계절 영향 기본 표본",
+      source: "data/output/final/enso_analysis/enso_active_season_years.md",
+      rule: "episode 시작연도가 아니라 해당 DJF/JJA 계절 자체가 ONI El Nino 또는 La Nina phase였는지를 기준으로 포함.",
     },
     {
       item: "RONI",
@@ -1214,6 +1282,11 @@ function buildResponseSystemIndex() {
       use: "계절 전망 질문 대응",
     },
     {
+      file: "active_season_year_table.md",
+      purpose: "ONI phase가 실제로 걸린 JJA/DJF 계절연도별 영향표",
+      use: "1987년 엘니뇨, 2022년 라니냐처럼 지속 episode의 계절 영향 확인",
+    },
+    {
       file: "lifecycle_effect_table.md",
       purpose: "엘니뇨·라니냐 발달기와 소멸기별 계절 기온·강수 영향표",
       use: "발달기인지 소멸기인지 묻는 질문 대응",
@@ -1278,6 +1351,7 @@ export function buildResponseDocuments({
   seasonRows,
   seasonMonthSampleRows = [],
   lifecycleRows = [],
+  activeSeasonRows = [],
   analogRows = [],
   currentContextText = "",
   stationPolicy = DEFAULT_STATION_POLICY,
@@ -1289,6 +1363,7 @@ export function buildResponseDocuments({
       seasonRows,
       seasonMonthSampleRows,
     )}\n`,
+    "active_season_year_table.md": `${buildActiveSeasonYearTable(activeSeasonRows)}\n`,
     "lifecycle_effect_table.md": `${buildLifecycleEffectTable(lifecycleRows)}\n`,
     "climate_factor_modifier_table.md": `${buildClimateFactorModifierTable(
       currentContextText,
@@ -1316,6 +1391,10 @@ export function buildCombinedResponseSystem(documents) {
     {
       situation: "폭염 가능성을 ONI로 설명할 수 있는가?",
       section: "ENSO 질문 대응 매트릭스, ONI 기준 계절별 기온·강수 영향표",
+    },
+    {
+      situation: "1987년 엘니뇨, 2022년 라니냐처럼 지속된 해도 봐야 하는가?",
+      section: "ONI 영향 계절연도 상세표",
     },
     {
       situation: "과거 유사해에는 어떤 일이 있었는가?",
@@ -1418,6 +1497,9 @@ export async function buildResponseSystem({
   const lifecycleRows = await readOptionalCsv(
     resolve(absoluteBase, "data/output/final/enso_analysis/enso_season_lifecycle_summary.md"),
   );
+  const activeSeasonRows = await readOptionalCsv(
+    resolve(absoluteBase, "data/output/final/enso_analysis/enso_active_season_years.md"),
+  );
   const analogRows = await readCsv(
     resolve(absoluteBase, "data/output/final/elnino_summer_2026/analog_year_metrics.csv"),
   );
@@ -1433,6 +1515,7 @@ export async function buildResponseSystem({
     seasonRows,
     seasonMonthSampleRows,
     lifecycleRows,
+    activeSeasonRows,
     analogRows,
     currentContextText: `${currentContextText}\n${extraContextText}`,
     stationPolicy,

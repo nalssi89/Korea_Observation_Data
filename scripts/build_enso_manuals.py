@@ -37,6 +37,7 @@ TODAY = date.today().isoformat()
 SEASON_PATH = ROOT / "data/output/final/enso_analysis/enso_season_phase_summary.md"
 MONTH_PATH = ROOT / "data/output/final/enso_analysis/enso_month_phase_summary.md"
 LIFECYCLE_PATH = ROOT / "data/output/final/enso_analysis/enso_season_lifecycle_summary.md"
+ACTIVE_SEASON_PATH = ROOT / "data/output/final/enso_analysis/enso_active_season_years.md"
 ANALOG_PATH = ROOT / "data/output/final/elnino_summer_2026/analog_year_metrics.csv"
 MANIFEST_PATH = ROOT / "data/output/final/elnino_summer_2026/analog_year_metrics_manifest.md"
 PUBLIC_GUIDE_PATH = ROOT / "data/output/final/enso_response_system/enso_public_communication_guide.md"
@@ -202,6 +203,26 @@ def lifecycle_rows(phase: str) -> list[list[str]]:
                 fixed(row["precip_ratio_pct"], 0, "%"),
                 temp_signal(row["tavg_departure_mean"], row["tavg_high_pct"], row["tavg_low_pct"]),
                 precip_signal(row["precip_ratio_pct"], row["precip_wet_pct"], row["precip_dry_pct"]),
+            ]
+        )
+    return rows
+
+
+def active_season_rows(phase: str) -> list[list[str]]:
+    rows = []
+    for row in read_csv(ACTIVE_SEASON_PATH):
+        if row["phase"] != phase or row["season"] not in {"DJF", "JJA"}:
+            continue
+        rows.append(
+            [
+                row["year"],
+                row["season"],
+                lifecycle_label(row["lifecycle_stage"]),
+                signed(row["oni"], 1, "도"),
+                signed(row["tavg_departure"], 1, "도"),
+                row["tavg_sign"],
+                fixed(row["precip_ratio_pct"], 0, "%"),
+                row["precip_sign"],
             ]
         )
     return rows
@@ -396,11 +417,24 @@ def el_nino_manual() -> tuple[str, list[Section]]:
             "ONI 발달해와 유사해 절차",
             [
                 make_paragraph(
-                    "ONI 발달해 전체는 1979년 이후 ONI warm episode 시작이 AMJ-SON인 해입니다. MJJ-ASO 여름 전환형은 여름 중 전환 질문에만 쓰는 부분집합입니다. RONI는 보조 표기로만 남깁니다."
+                    "ONI 발달해 전체는 1979년 이후 ONI warm episode 시작이 AMJ-SON인 해입니다. 이 표는 ENSO가 새로 시작된 해를 보는 유사해 표이며, 이미 진행 중인 엘니뇨가 여름·겨울에 영향을 준 해는 다음 '영향 계절연도' 표에서 확인합니다."
                 ),
                 make_table(
                     ["연도", "ONI 시작", "JJA 기온편차", "기온 부호", "JJA 강수비", "강수 부호", "태풍 근접"],
                     el_nino_analog_rows(),
+                    wide=True,
+                ),
+            ],
+        ),
+        Section(
+            "여름·겨울 영향 계절연도",
+            [
+                make_paragraph(
+                    "여름·겨울 영향 질문에는 episode 시작연도가 아니라 해당 JJA 또는 DJF 계절 자체가 ONI El Nino phase였는지를 기준으로 봅니다. 따라서 1987년처럼 전년부터 이어진 엘니뇨 해도 포함합니다."
+                ),
+                make_table(
+                    ["연도", "계절", "단계", "중심 ONI", "기온편차", "기온 부호", "강수평년비", "강수 부호"],
+                    active_season_rows("El Nino"),
                     wide=True,
                 ),
             ],
@@ -541,11 +575,24 @@ def la_nina_manual() -> tuple[str, list[Section]]:
             "ONI cold episode와 유사해 절차",
             [
                 make_paragraph(
-                    "라니냐 유사해는 ONI cold episode 시작 시점, 강도, 지속 기간, 최근 기후 배경을 기준으로 구성합니다. RONI는 보조 민감도 확인이며 기본 표본을 대체하지 않습니다."
+                    "라니냐 유사해는 ONI cold episode 시작 시점, 강도, 지속 기간, 최근 기후 배경을 기준으로 구성합니다. 이 표는 시작 episode를 보는 표이며, 이미 진행 중인 라니냐가 여름·겨울에 영향을 준 해는 다음 '영향 계절연도' 표에서 확인합니다."
                 ),
                 make_table(
                     ["시작연도", "시작", "종료", "최저 ONI", "지속 계절수"],
                     oni_episodes("La Nina"),
+                    wide=True,
+                ),
+            ],
+        ),
+        Section(
+            "여름·겨울 영향 계절연도",
+            [
+                make_paragraph(
+                    "여름·겨울 영향 질문에는 episode 시작연도가 아니라 해당 JJA 또는 DJF 계절 자체가 ONI La Nina phase였는지를 기준으로 봅니다. 따라서 2022년처럼 전년부터 이어진 라니냐 해도 포함합니다."
+                ),
+                make_table(
+                    ["연도", "계절", "단계", "중심 ONI", "기온편차", "기온 부호", "강수평년비", "강수 부호"],
+                    active_season_rows("La Nina"),
                     wide=True,
                 ),
             ],
