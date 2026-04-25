@@ -122,7 +122,19 @@ export function isDirectExecution(importMetaUrl, scriptPath) {
     return false;
   }
 
-  return importMetaUrl === pathToFileURL(scriptPath).href;
+  if (importMetaUrl === pathToFileURL(scriptPath).href) {
+    return true;
+  }
+
+  const scriptPathForComparison = scriptPath.replaceAll("\\", "/");
+  const normalizedScriptPath = /^[A-Za-z]:\//u.test(scriptPathForComparison)
+    ? scriptPathForComparison
+    : resolve(scriptPathForComparison);
+  const normalizedImportPath = decodeURIComponent(
+    new URL(importMetaUrl).pathname,
+  ).replace(/^\/([A-Za-z]:\/)/u, "$1");
+
+  return normalizedImportPath === normalizedScriptPath;
 }
 
 if (isDirectExecution(import.meta.url, process.argv[1])) {
