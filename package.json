@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:enso-response": "node scripts/build_enso_response_system.js data/output/final/enso_response_system ../ENSO_RESPONSE_SYSTEM.md",
     "test": "node --test --test-isolation=none"
   }
 }

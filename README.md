@@ -38,3 +38,36 @@ node scripts/export_south_korea_pivots.js data/output/final/south_korea_fixed_19
 The combined human-readable report is:
 
 - `data/output/final/south_korea_tables/south_korea_final_value_sign_tables.md`
+
+## ENSO response system
+
+Generate the ONI-centered response package:
+
+```bash
+npm run build:enso-response
+```
+
+Use this single file first:
+
+- `../ENSO_RESPONSE_SYSTEM.md`
+
+It includes a worked 2026 April example covering summer temperature,
+summer precipitation, typhoon influence, autumn, and winter.
+Temperature and precipitation judgments intentionally exclude official forecast
+probabilities from KMA or other agencies; they use observed data and observed
+analog outcomes only.
+
+The detailed source tables are also written to:
+
+- `data/output/final/enso_response_system/response_system_index.md`
+- `data/output/final/enso_response_system/evidence_registry.md`
+- `data/output/final/enso_response_system/monthly_effect_table.md`
+- `data/output/final/enso_response_system/seasonal_effect_table.md`
+- `data/output/final/enso_response_system/climate_factor_modifier_table.md`
+- `data/output/final/enso_response_system/analog_year_cards.md`
+- `data/output/final/enso_response_system/changma_typhoon_reference.md`
+- `data/output/final/enso_response_system/question_answer_matrix.md`
+
+The system uses ONI as the primary ENSO index, keeps RONI as an auxiliary
+sensitivity check, excludes Tibetan snow cover, and preserves the existing
+South Korea station and 1991-2020 normal-period policy.

@@ -1,0 +1,1039 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+
+import { readCsv } from "./csv.js";
+
+const PHASES = ["El Nino", "Neutral", "La Nina"];
+const COMBINED_DOCUMENT_ORDER = [
+  "response_system_index.md",
+  "evidence_registry.md",
+  "question_answer_matrix.md",
+  "monthly_effect_table.md",
+  "seasonal_effect_table.md",
+  "climate_factor_modifier_table.md",
+  "analog_year_cards.md",
+  "changma_typhoon_reference.md",
+];
+const PHASE_LABELS = {
+  "El Nino": "엘니뇨",
+  Neutral: "중립",
+  "La Nina": "라니냐",
+};
+
+const MONTH_NAMES = {
+  1: "1월",
+  2: "2월",
+  3: "3월",
+  4: "4월",
+  5: "5월",
+  6: "6월",
+  7: "7월",
+  8: "8월",
+  9: "9월",
+  10: "10월",
+  11: "11월",
+  12: "12월",
+};
+
+const DEFAULT_STATION_POLICY =
+  "기존 적용값 유지. 1973~1989년은 제주 제외 본토 56개 대표지점, 1990년 이후는 제주 제외 본토 62개 대표지점, 평년은 1991~2020 고정 평년.";
+
+function numeric(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const converted = Number(value);
+  return Number.isFinite(converted) ? converted : null;
+}
+
+function round(value, digits = 1) {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  const factor = 10 ** digits;
+  return Math.round((value + 1e-10) * factor) / factor;
+}
+
+function format(value, digits = 1, suffix = "") {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  return `${round(value, digits).toFixed(digits)}${suffix}`;
+}
+
+function signedFormat(value, digits = 1, suffix = "") {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  const rounded = round(value, digits);
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(digits)}${suffix}`;
+}
+
+function markdownTable(rows, fields) {
+  const lines = [
+    `| ${fields.map((field) => field.label).join(" | ")} |`,
+    `| ${fields.map(() => "---").join(" | ")} |`,
+  ];
+  for (const row of rows) {
+    lines.push(`| ${fields.map((field) => row[field.key] ?? "").join(" | ")} |`);
+  }
+  return lines.join("\n");
+}
+
+function demoteMarkdownHeadings(content) {
+  return content.trim().replace(/^(#{1,5})\s/gmu, "$1# ");
+}
+
+function confidenceFromCount(count) {
+  if (count >= 30) return "높음";
+  if (count >= 15) return "중간";
+  if (count >= 8) return "낮음";
+  return "매우 낮음";
+}
+
+function precipitationSignal(row) {
+  const ratio = numeric(row.precip_ratio_pct);
+  const wet = numeric(row.precip_wet_pct);
+  const dry = numeric(row.precip_dry_pct);
+  if (ratio === null) return "자료 부족";
+  if (ratio >= 110 || wet - dry >= 15) return "다우 쪽";
+  if (ratio <= 90 || dry - wet >= 15) return "소우 쪽";
+  return "뚜렷하지 않음";
+}
+
+function temperatureSignal(row) {
+  const departure = numeric(row.tavg_departure_mean);
+  const high = numeric(row.tavg_high_pct);
+  const low = numeric(row.tavg_low_pct);
+  if (departure === null) return "자료 부족";
+  if (departure >= 0.3 || high - low >= 15) return "고온 쪽";
+  if (departure <= -0.3 || low - high >= 15) return "저온 쪽";
+  return "뚜렷하지 않음";
+}
+
+function hasPrimaryOniSignal(row) {
+  return /(^|;\s*)ONI\s/u.test(row.onset_proxy ?? "");
+}
+
+function sortMonthRows(rows) {
+  return [...rows].sort((left, right) => {
+    const leftMonth = numeric(left.month) ?? 0;
+    const rightMonth = numeric(right.month) ?? 0;
+    if (leftMonth !== rightMonth) return leftMonth - rightMonth;
+    return PHASES.indexOf(left.phase) - PHASES.indexOf(right.phase);
+  });
+}
+
+function sortSeasonRows(rows) {
+  const order = { DJF: 0, MAM: 1, JJA: 2, SON: 3 };
+  return [...rows].sort((left, right) => {
+    const seasonDiff = (order[left.season] ?? 9) - (order[right.season] ?? 9);
+    if (seasonDiff !== 0) return seasonDiff;
+    return PHASES.indexOf(left.phase) - PHASES.indexOf(right.phase);
+  });
+}
+
+function buildMonthlyEffectTable(monthRows) {
+  const rows = sortMonthRows(monthRows).map((row) => {
+    const count = numeric(row.n) ?? 0;
+    return {
+      month: MONTH_NAMES[row.month] ?? `${row.month}월`,
+      phase: PHASE_LABELS[row.phase] ?? row.phase,
+      n: count,
+      tavg_departure: signedFormat(numeric(row.tavg_departure_mean), 1, "°C"),
+      tavg_high_pct: format(numeric(row.tavg_high_pct), 0, "%"),
+      precip_ratio: format(numeric(row.precip_ratio_pct), 0, "%"),
+      precip_wet_pct: format(numeric(row.precip_wet_pct), 0, "%"),
+      temp_signal: temperatureSignal(row),
+      precip_signal: precipitationSignal(row),
+      confidence: confidenceFromCount(count),
+    };
+  });
+
+  return [
+    "# ONI 기준 월별 기온·강수 영향표",
+    "",
+    "- 기본 지표는 ONI입니다.",
+    "- RONI는 이 표의 phase 판정에 쓰지 않습니다.",
+    "- 기온은 남한 평균기온 평년편차, 강수는 남한 월강수량 평년비와 다우 비율을 함께 봅니다.",
+    "",
+    markdownTable(rows, [
+      { key: "month", label: "월" },
+      { key: "phase", label: "ONI 위상" },
+      { key: "n", label: "표본" },
+      { key: "tavg_departure", label: "평균기온 편차" },
+      { key: "tavg_high_pct", label: "고온 비율" },
+      { key: "precip_ratio", label: "강수 평년비" },
+      { key: "precip_wet_pct", label: "다우 비율" },
+      { key: "temp_signal", label: "기온 신호" },
+      { key: "precip_signal", label: "강수 신호" },
+      { key: "confidence", label: "신뢰도" },
+    ]),
+    "",
+    "## 해석 규칙",
+    "",
+    "- 표본이 작거나 강수 부호가 엇갈리면 평균값만으로 단정하지 않습니다.",
+    "- 월별 영향이 전체 평균보다 중요합니다.",
+  ].join("\n");
+}
+
+function buildSeasonalEffectTable(seasonRows) {
+  const rows = sortSeasonRows(seasonRows).map((row) => {
+    const count = numeric(row.n) ?? 0;
+    return {
+      season: row.season,
+      phase: PHASE_LABELS[row.phase] ?? row.phase,
+      n: count,
+      tavg_departure: signedFormat(numeric(row.tavg_departure_mean), 1, "°C"),
+      tavg_high_pct: format(numeric(row.tavg_high_pct), 0, "%"),
+      precip_departure: signedFormat(numeric(row.precip_departure_mean), 1, "mm"),
+      precip_ratio: format(numeric(row.precip_ratio_pct), 0, "%"),
+      precip_wet_pct: format(numeric(row.precip_wet_pct), 0, "%"),
+      temp_signal: temperatureSignal(row),
+      precip_signal: precipitationSignal(row),
+      confidence: confidenceFromCount(count),
+    };
+  });
+
+  return [
+    "# ONI 기준 계절별 기온·강수 영향표",
+    "",
+    "- 기본 지표는 ONI입니다.",
+    "- 남한 평균자료와 1991~2020 고정 평년을 그대로 사용합니다.",
+    "",
+    markdownTable(rows, [
+      { key: "season", label: "계절" },
+      { key: "phase", label: "ONI 위상" },
+      { key: "n", label: "표본" },
+      { key: "tavg_departure", label: "평균기온 편차" },
+      { key: "tavg_high_pct", label: "고온 비율" },
+      { key: "precip_departure", label: "강수 편차" },
+      { key: "precip_ratio", label: "강수 평년비" },
+      { key: "precip_wet_pct", label: "다우 비율" },
+      { key: "temp_signal", label: "기온 신호" },
+      { key: "precip_signal", label: "강수 신호" },
+      { key: "confidence", label: "신뢰도" },
+    ]),
+    "",
+    "## 여름 해석",
+    "",
+    "- JJA 평균만 보지 않고 6월, 7월, 8월을 따로 확인합니다.",
+    "- 강수량은 장마전선, 저기압, 태풍 수증기 유입에 민감하므로 계절 평균과 집중호우 위험을 분리합니다.",
+  ].join("\n");
+}
+
+function extractContextValue(text, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const match = text.match(new RegExp(`\\| ${escaped} \\| ([^|]+) \\|`, "u"));
+  return match?.[1]?.trim() ?? "기존 요약자료에서 자동 추출 실패";
+}
+
+function buildClimateFactorModifierTable(contextText, analogRows) {
+  const currentRows = [
+    {
+      factor: "AO",
+      current: extractContextValue(contextText, "AO 월평균"),
+      role: "겨울~봄 고위도 순환 배경. 음/양 전환이 큰 해는 여름 유사해 판단에서 별도 표시.",
+      effect: "ONI 결론을 직접 대체하지 않고 유사해 우선순위를 보정",
+    },
+    {
+      factor: "NAO",
+      current: extractContextValue(contextText, "AO/NAO"),
+      role: "북대서양-유라시아 파동 배경. AO와 함께 고위도 순환의 보조 신호로 사용.",
+      effect: "AO와 같은 방향이면 보정 신뢰도 상승, 다르면 보수적으로 해석",
+    },
+    {
+      factor: "북극·바렌츠·카라 해빙",
+      current:
+        extractContextValue(contextText, "북극·카라바렌츠 해빙") ||
+        extractContextValue(contextText, "북극 해빙"),
+      role: "봄철 고위도 열적 배경. 북극 전체와 바렌츠/카라를 분리해서 본다.",
+      effect: "저해빙 유사해가 고온·소우/다우로 갈라지면 단정 금지",
+    },
+    {
+      factor: "유라시아 눈덮임",
+      current: extractContextValue(contextText, "유라시아 눈덮임"),
+      role: "봄철 대륙 가열과 제트/순환장의 간접 보조 인자.",
+      effect: "원시 시계열이 없는 경우 기존 요약값만 쓰고 낮은 가중치 적용",
+    },
+  ];
+
+  const analogFactorRows = analogRows
+    .filter(hasPrimaryOniSignal)
+    .slice(0, 8)
+    .map((row) => ({
+      year: row.year,
+      onset: row.onset_proxy,
+      distance: format(numeric(row.distance_to_2026), 2),
+      ao_jfm: format(numeric(row.ao_jfm), 2),
+      nao_jfm: format(numeric(row.nao_jfm), 2),
+      arctic_z: format(numeric(row.arctic_jfm_z), 2),
+      barents_z: format(numeric(row.barents_jfm_z), 2),
+      kara_z: format(numeric(row.kara_jfm_z), 2),
+      summer: `${signedFormat(numeric(row.jja_tavg_dep), 1, "°C")} / ${format(
+        numeric(row.jja_precip_ratio),
+        0,
+        "%",
+      )}`,
+    }));
+
+  return [
+    "# ONI 해석 보정용 기후인자 표",
+    "",
+    "- ONI를 먼저 적용하고, 아래 인자는 결론의 강도와 유사해 우선순위를 보정합니다.",
+    "- RONI는 이 보정표의 가중치에 넣지 않습니다.",
+    "",
+    "## 현재 감시 인자",
+    "",
+    markdownTable(currentRows, [
+      { key: "factor", label: "인자" },
+      { key: "current", label: "현재 요약" },
+      { key: "role", label: "사용 목적" },
+      { key: "effect", label: "ONI 해석에서의 역할" },
+    ]),
+    "",
+    "## ONI 유사해의 고위도 보조지표",
+    "",
+    markdownTable(analogFactorRows, [
+      { key: "year", label: "연도" },
+      { key: "onset", label: "ONI 전환 근거" },
+      { key: "distance", label: "2026 유사도" },
+      { key: "ao_jfm", label: "AO JFM" },
+      { key: "nao_jfm", label: "NAO JFM" },
+      { key: "arctic_z", label: "북극 해빙 z" },
+      { key: "barents_z", label: "바렌츠 z" },
+      { key: "kara_z", label: "카라 z" },
+      { key: "summer", label: "JJA 기온/강수" },
+    ]),
+  ].join("\n");
+}
+
+function buildEvidenceRegistry(stationPolicy) {
+  const rows = [
+    {
+      item: "ONI",
+      role: "기본 ENSO 판정",
+      source: "NOAA/CPC ONI v5",
+      rule: "+0.5°C 이상 또는 -0.5°C 이하가 5개 이상 연속된 episode를 phase로 사용",
+    },
+    {
+      item: "RONI",
+      role: "보조 확인",
+      source: "NOAA/CPC RONI",
+      rule: "ONI 결론의 온난화 배경 민감도 확인용. 기본 phase나 유사도 점수에는 넣지 않음",
+    },
+    {
+      item: "남한 기온·강수",
+      role: "국내 영향 산출",
+      source: "data/output/final/south_korea_fixed_1991_2020_comparison.md",
+      rule: stationPolicy,
+    },
+    {
+      item: "기관 공식 기온·강수 전망",
+      role: "제외",
+      source: "KMA 등 국내외 기관 전망",
+      rule: "기온·강수 영향 판단에는 사용하지 않음. 관측자료 기반 사후 비교가 필요할 때만 별도 참고.",
+    },
+    {
+      item: "AO",
+      role: "고위도 순환 보정",
+      source: "NOAA/CPC AO monthly index",
+      rule: "1~3월 평균, 월별 값, 겨울-봄 전환폭을 보조지표로 사용",
+    },
+    {
+      item: "NAO",
+      role: "고위도 순환 보정",
+      source: "NOAA/CPC NAO monthly index",
+      rule: "AO와 함께 대서양-유라시아 순환 배경을 판단",
+    },
+    {
+      item: "해빙",
+      role: "고위도 열적 배경 보정",
+      source: "NSIDC Sea Ice Index",
+      rule: "북극 전체, 바렌츠해, 카라해를 분리해서 사용",
+    },
+    {
+      item: "유라시아 눈덮임",
+      role: "대륙 가열·제트 보조인자",
+      source: "Rutgers Global Snow Lab Eurasia SCE",
+      rule: "1~3월 월별값과 봄철 주별값을 보조로 사용",
+    },
+    {
+      item: "티벳 눈덮임",
+      role: "제외",
+      source: "없음",
+      rule: "이번 프로젝트 범위에서는 제외",
+    },
+    {
+      item: "장마·태풍",
+      role: "별도 보정 레이어",
+      source: "KMA 장마 통계, IBTrACS/KMA 태풍자료",
+      rule: "ONI 직접효과로 단정하지 않고 정체전선, 북태평양고기압, 저기압, 경로를 함께 해석",
+    },
+  ];
+
+  return [
+    "# ENSO 대응 체계 근거 등록부",
+    "",
+    markdownTable(rows, [
+      { key: "item", label: "항목" },
+      { key: "role", label: "역할" },
+      { key: "source", label: "출처" },
+      { key: "rule", label: "적용 규칙" },
+    ]),
+  ].join("\n");
+}
+
+function buildAnalogYearCards(analogRows) {
+  const primaryRows = analogRows
+    .filter(hasPrimaryOniSignal)
+    .map((row) => ({
+      year: row.year,
+      tier: "ONI 기본",
+      onset: row.onset_proxy,
+      distance: format(numeric(row.distance_to_2026), 2),
+      tavg: `${format(numeric(row.jja_tavg), 2, "°C")} (${signedFormat(
+        numeric(row.jja_tavg_dep),
+        1,
+        "°C",
+      )})`,
+      tmax: `${format(numeric(row.jja_tmax), 2, "°C")} (${signedFormat(
+        numeric(row.jja_tmax_dep),
+        1,
+        "°C",
+      )})`,
+      precip: `${format(numeric(row.jja_precip), 1, "mm")} (${format(
+        numeric(row.jja_precip_ratio),
+        0,
+        "%",
+      )})`,
+      factors: `AO ${format(numeric(row.ao_jfm), 2)}, NAO ${format(
+        numeric(row.nao_jfm),
+        2,
+      )}, 해빙 z ${format(numeric(row.arctic_jfm_z), 2)}`,
+    }));
+
+  const sensitivityRows = analogRows
+    .filter((row) => !hasPrimaryOniSignal(row))
+    .map((row) => ({
+      year: row.year,
+      tier: "RONI 보조",
+      onset: row.onset_proxy,
+      distance: format(numeric(row.distance_to_2026), 2),
+      tavg: `${format(numeric(row.jja_tavg), 2, "°C")} (${signedFormat(
+        numeric(row.jja_tavg_dep),
+        1,
+        "°C",
+      )})`,
+      tmax: `${format(numeric(row.jja_tmax), 2, "°C")} (${signedFormat(
+        numeric(row.jja_tmax_dep),
+        1,
+        "°C",
+      )})`,
+      precip: `${format(numeric(row.jja_precip), 1, "mm")} (${format(
+        numeric(row.jja_precip_ratio),
+        0,
+        "%",
+      )})`,
+      factors: `AO ${format(numeric(row.ao_jfm), 2)}, NAO ${format(
+        numeric(row.nao_jfm),
+        2,
+      )}, 해빙 z ${format(numeric(row.arctic_jfm_z), 2)}`,
+    }));
+
+  const fields = [
+    { key: "year", label: "연도" },
+    { key: "tier", label: "구분" },
+    { key: "onset", label: "전환 근거" },
+    { key: "distance", label: "2026 유사도" },
+    { key: "tavg", label: "JJA 평균기온" },
+    { key: "tmax", label: "JJA 최고기온" },
+    { key: "precip", label: "JJA 강수량" },
+    { key: "factors", label: "보조 인자" },
+  ];
+
+  return [
+    "# ONI 중심 유사해 카드",
+    "",
+    "- 먼저 ONI 기준 전환 사례를 봅니다.",
+    "- RONI만 걸리는 사례는 보조 민감도 확인으로 분리합니다.",
+    "",
+    "## ONI 기본 유사해",
+    "",
+    markdownTable(primaryRows, fields),
+    "",
+    "## RONI 보조 참고",
+    "",
+    sensitivityRows.length > 0
+      ? markdownTable(sensitivityRows, fields)
+      : "RONI만으로 추가되는 보조 사례가 없습니다.",
+  ].join("\n");
+}
+
+function rowLookup(rows, keyField, keyValue, phase) {
+  return rows.find((row) => String(row[keyField]) === String(keyValue) && row.phase === phase);
+}
+
+function meanValue(rows, key) {
+  const values = rows.map((row) => numeric(row[key])).filter((value) => value !== null);
+  if (values.length === 0) {
+    return null;
+  }
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function buildExampleScenarioResponse(monthRows, seasonRows, analogRows = []) {
+  const jjaElNino = rowLookup(seasonRows, "season", "JJA", "El Nino");
+  const sonElNino = rowLookup(seasonRows, "season", "SON", "El Nino");
+  const djfElNino = rowLookup(seasonRows, "season", "DJF", "El Nino");
+  const juneElNino = rowLookup(monthRows, "month", 6, "El Nino");
+  const julyElNino = rowLookup(monthRows, "month", 7, "El Nino");
+  const augustElNino = rowLookup(monthRows, "month", 8, "El Nino");
+  const septemberElNino = rowLookup(monthRows, "month", 9, "El Nino");
+  const octoberElNino = rowLookup(monthRows, "month", 10, "El Nino");
+  const novemberElNino = rowLookup(monthRows, "month", 11, "El Nino");
+  const decemberElNino = rowLookup(monthRows, "month", 12, "El Nino");
+  const januaryElNino = rowLookup(monthRows, "month", 1, "El Nino");
+  const februaryElNino = rowLookup(monthRows, "month", 2, "El Nino");
+  const primaryAnalogRows = analogRows.filter(hasPrimaryOniSignal);
+  const analogCount = primaryAnalogRows.length;
+  const analogTempMean = meanValue(primaryAnalogRows, "jja_tavg_dep");
+  const analogPrecipMean = meanValue(primaryAnalogRows, "jja_precip_ratio");
+  const analogHotCount = primaryAnalogRows.filter(
+    (row) => (numeric(row.jja_tavg_dep) ?? 0) > 0,
+  ).length;
+  const analogWetCount = primaryAnalogRows.filter(
+    (row) => (numeric(row.jja_precip_ratio) ?? 0) >= 110,
+  ).length;
+  const analogDryCount = primaryAnalogRows.filter(
+    (row) => (numeric(row.jja_precip_ratio) ?? 999) <= 90,
+  ).length;
+
+  const premiseRows = [
+    {
+      item: "질문 시나리오",
+      content:
+        "2026년 4월 현재 여름철 엘니뇨 발달 가능성이 제기된 상황을 가정한다. 이 전제는 질문 조건이며, 영향 판단 점수에는 넣지 않는다.",
+    },
+    {
+      item: "판단 자료",
+      content:
+        "관측된 ONI 위상별 남한 평균 기온·강수 통계, ONI 전환 유사해의 실제 여름 결과, AO·NAO·해빙·유라시아 눈덮임 관측값만 사용한다.",
+    },
+    {
+      item: "제외 자료",
+      content:
+        "KMA 등 국내외 기관의 기온·강수 공식 전망, 3개월전망, 계절전망 확률은 기온·강수 판단 근거에서 제외한다.",
+    },
+  ];
+
+  const answerRows = [
+    {
+      topic: "여름 기온",
+      answer: "ONI 관측 통계만으로는 여름 고온이나 폭염을 단정하기 어렵다.",
+      evidence: `과거 ONI 엘니뇨 JJA는 평균기온 편차 ${signedFormat(
+        numeric(jjaElNino?.tavg_departure_mean),
+        1,
+        "°C",
+      )}, 고온 비율 ${format(numeric(jjaElNino?.tavg_high_pct), 0, "%")}. ONI 전환 유사해 ${analogCount}개 평균 JJA 기온편차는 ${signedFormat(
+        analogTempMean,
+        1,
+        "°C",
+      )}, 양의 편차 사례는 ${analogHotCount}/${analogCount}개.`,
+      caution:
+        "폭염은 7~8월 북태평양고기압, 고온다습 남서류, 해양열용량, 중위도 파동이 결합할 때 강화됨.",
+      confidence: "중간",
+    },
+    {
+      topic: "여름 강수",
+      answer: "계절 누적 강수는 뚜렷한 다우·소우 한 방향으로 단정하지 않는다.",
+      evidence: `ONI 엘니뇨 JJA 강수 평년비는 ${format(
+        numeric(jjaElNino?.precip_ratio_pct),
+        0,
+        "%",
+      )}. 월별로는 6월 ${format(numeric(juneElNino?.precip_ratio_pct), 0, "%")}, 7월 ${format(
+        numeric(julyElNino?.precip_ratio_pct),
+        0,
+        "%",
+      )}, 8월 ${format(numeric(augustElNino?.precip_ratio_pct), 0, "%")}로 방향이 일정하지 않음. ONI 전환 유사해 평균 강수 평년비는 ${format(
+        analogPrecipMean,
+        0,
+        "%",
+      )}, 다우 사례는 ${analogWetCount}/${analogCount}개, 소우 사례는 ${analogDryCount}/${analogCount}개.`,
+      caution:
+        "장마전선 체류, 저기압 발달, 하층 수증기 유입, 태풍 원격 수증기 때문에 계절 강수와 단기 호우는 분리해서 설명.",
+      confidence: "중간",
+    },
+    {
+      topic: "여름 태풍",
+      answer: "엘니뇨 발달이 한반도 영향태풍 증가를 바로 뜻하지 않는다.",
+      evidence:
+        "관측 유사사례의 한반도 500km 접근 참고값은 넓게 퍼짐. 이는 거리 기반 참고값이며 공식 영향태풍 판정을 대체하지 않음.",
+      caution:
+        "태풍은 개수보다 북태평양고기압 가장자리, 중위도 기압골, 전선 위치, 접근 시점의 수증기 공급이 핵심.",
+      confidence: "낮음~중간",
+    },
+    {
+      topic: "가을 영향",
+      answer: "엘니뇨가 지속되면 평균적으로 가을 강수는 소우 쪽 신호가 있으나 태풍·전선 예외가 크다.",
+      evidence: `ONI 엘니뇨 SON은 평균기온 편차 ${signedFormat(
+        numeric(sonElNino?.tavg_departure_mean),
+        1,
+        "°C",
+      )}, 강수 평년비 ${format(numeric(sonElNino?.precip_ratio_pct), 0, "%")}. 월별 강수는 9월 ${format(
+        numeric(septemberElNino?.precip_ratio_pct),
+        0,
+        "%",
+      )}, 10월 ${format(numeric(octoberElNino?.precip_ratio_pct), 0, "%")}, 11월 ${format(
+        numeric(novemberElNino?.precip_ratio_pct),
+        0,
+        "%",
+      )}.`,
+      caution:
+        "9월 소우 신호가 강하지만, 가을 태풍이나 전선성 강수가 있으면 계절 평균이 쉽게 바뀔 수 있음.",
+      confidence: "중간",
+    },
+    {
+      topic: "겨울 영향",
+      answer: "엘니뇨가 겨울까지 지속되면 고온·다우 쪽 신호가 여름보다 비교적 선명하다.",
+      evidence: `ONI 엘니뇨 DJF는 평균기온 편차 ${signedFormat(
+        numeric(djfElNino?.tavg_departure_mean),
+        1,
+        "°C",
+      )}, 강수 평년비 ${format(numeric(djfElNino?.precip_ratio_pct), 0, "%")}. 월별로는 12월 ${signedFormat(
+        numeric(decemberElNino?.tavg_departure_mean),
+        1,
+        "°C",
+      )}/${format(numeric(decemberElNino?.precip_ratio_pct), 0, "%")}, 1월 ${signedFormat(
+        numeric(januaryElNino?.tavg_departure_mean),
+        1,
+        "°C",
+      )}/${format(numeric(januaryElNino?.precip_ratio_pct), 0, "%")}, 2월 ${signedFormat(
+        numeric(februaryElNino?.tavg_departure_mean),
+        1,
+        "°C",
+      )}/${format(numeric(februaryElNino?.precip_ratio_pct), 0, "%")}.`,
+      caution:
+        "AO, 시베리아고기압, 동아시아 겨울몬순이 반대로 작동하면 월별 한파와 건조한 시기는 남을 수 있음.",
+      confidence: "중간~높음",
+    },
+  ];
+
+  return [
+    "## 예시 답변: 2026년 4월 현재 엘니뇨 발달 가능성과 한반도 영향",
+    "",
+    "### 예시 질문",
+    "",
+    "> 2026년 4월 현재 여름철 엘니뇨가 발달한다고 하는데, 한반도 여름철 기온과 강수량, 태풍의 영향은 어떤가? 가을철과 겨울철 영향도 함께 알려달라.",
+    "",
+    "### 답변 요지",
+    "",
+    "관측자료만으로 보면, 엘니뇨 발달 가능성이 있다는 이유만으로 한반도 여름이 반드시 고온·다우·태풍 증가로 간다고 답하기 어렵습니다. 과거 ONI 기준 엘니뇨 여름 통계는 기온 고온 신호가 약하고, 강수는 6~8월 월별 방향이 엇갈립니다. 따라서 여름 기온은 폭염 단정이 아니라 북태평양고기압, 고온다습한 남서류, 해양열용량, 중위도 파동의 결합 여부를 조건부로 설명합니다. 강수량은 계절 누적 다우를 단정하지 않고, 장마전선·저기압·태풍 수증기 유입에 따른 단기 집중호우 가능성을 별도로 둡니다. 태풍도 엘니뇨 여부보다 경로와 수증기 유입 시점이 핵심입니다. 가을은 엘니뇨 지속 시 소우 쪽 신호가 있으나 태풍 예외가 크고, 겨울은 고온·다우 쪽 신호가 여름보다 비교적 선명합니다.",
+    "",
+    "### 예시 전제",
+    "",
+    markdownTable(premiseRows, [
+      { key: "item", label: "항목" },
+      { key: "content", label: "적용 내용" },
+    ]),
+    "",
+    "### 항목별 답변",
+    "",
+    markdownTable(answerRows, [
+      { key: "topic", label: "항목" },
+      { key: "answer", label: "판단" },
+      { key: "evidence", label: "근거" },
+      { key: "caution", label: "주의" },
+      { key: "confidence", label: "신뢰도" },
+    ]),
+    "",
+    "### 대외 설명 문구",
+    "",
+    "> 관측된 과거자료 기준으로는 엘니뇨 발달 가능성만으로 한반도 여름의 폭염, 다우, 태풍 증가를 단정하기 어렵습니다. ONI 기준 엘니뇨 여름은 평균기온 고온 신호가 강하지 않고, 강수량도 6월·7월·8월 방향이 같지 않았습니다. 따라서 여름 기온은 북태평양고기압과 고온다습한 남서류가 실제로 강화되는지를 함께 봐야 하며, 강수량은 계절 누적보다 장마전선 정체나 태풍 수증기 유입에 따른 단기 집중호우를 별도로 감시해야 합니다. 태풍은 개수보다 경로와 접근 시점이 중요합니다.",
+    "",
+    "### 예시 출처",
+    "",
+    "- `data/output/final/enso_analysis/enso_month_phase_summary.md`",
+    "- `data/output/final/enso_analysis/enso_season_phase_summary.md`",
+    "- `data/output/final/elnino_summer_2026/analog_year_metrics.csv`",
+    "- `data/output/final/south_korea_fixed_1991_2020_comparison.md`",
+  ].join("\n");
+}
+
+function buildQuestionAnswerMatrix(monthRows, seasonRows) {
+  const jjaElNino = rowLookup(seasonRows, "season", "JJA", "El Nino");
+  const juneElNino = rowLookup(monthRows, "month", 6, "El Nino");
+  const julyElNino = rowLookup(monthRows, "month", 7, "El Nino");
+  const augustElNino = rowLookup(monthRows, "month", 8, "El Nino");
+  const djfElNino = rowLookup(seasonRows, "season", "DJF", "El Nino");
+  const sonElNino = rowLookup(seasonRows, "season", "SON", "El Nino");
+
+  const rows = [
+    {
+      question: "엘니뇨가 발달하면 여름에 비가 많이 오나?",
+      answer: "ONI만으로는 단정하지 않는다.",
+      evidence: `JJA 엘니뇨 강수 평년비 ${format(
+        numeric(jjaElNino?.precip_ratio_pct),
+        0,
+        "%",
+      )}, 6월 ${format(numeric(juneElNino?.precip_ratio_pct), 0, "%")}, 7월 ${format(
+        numeric(julyElNino?.precip_ratio_pct),
+        0,
+        "%",
+      )}, 8월 ${format(numeric(augustElNino?.precip_ratio_pct), 0, "%")}.`,
+      counter: "월별 방향이 같지 않고 장마전선, 저기압, 태풍 수증기 유입의 영향이 큼.",
+      confidence: "중간",
+      wording:
+        "엘니뇨 발달 가능성은 강수 판단의 한 근거일 뿐입니다. 여름 강수는 월별 차이가 커서 장마전선과 태풍 경로를 함께 봐야 합니다.",
+    },
+    {
+      question: "엘니뇨가 발달하면 폭염이 오나?",
+      answer: "ONI 단독으로 폭염을 설명하지 않는다.",
+      evidence: `JJA 엘니뇨 평균기온 편차 ${signedFormat(
+        numeric(jjaElNino?.tavg_departure_mean),
+        1,
+        "°C",
+      )}, 고온 비율 ${format(numeric(jjaElNino?.tavg_high_pct), 0, "%")}.`,
+      counter: "폭염은 북태평양고기압, 습윤 남서류, 해양열용량, 중위도 파동의 결합이 더 직접적.",
+      confidence: "중간",
+      wording:
+        "엘니뇨라서 바로 폭염이라고 말하기는 어렵습니다. 고온 가능성은 ONI보다 북태평양고기압과 고온다습한 남서류 조건까지 결합해 설명하는 것이 안전합니다.",
+    },
+    {
+      question: "겨울 엘니뇨는 한반도에 어떤 영향이 있나?",
+      answer: "상대적으로 고온·다우 신호가 여름보다 더 선명하다.",
+      evidence: `DJF 엘니뇨 평균기온 편차 ${signedFormat(
+        numeric(djfElNino?.tavg_departure_mean),
+        1,
+        "°C",
+      )}, 강수 평년비 ${format(numeric(djfElNino?.precip_ratio_pct), 0, "%")}.`,
+      counter: "AO, 시베리아고기압, EAWM이 반대 방향이면 월별 한파 가능성은 남음.",
+      confidence: "중간",
+      wording:
+        "겨울 엘니뇨는 남한 평균으로는 평년보다 온화하고 강수가 많은 쪽 신호가 비교적 뚜렷하지만, AO와 동아시아 겨울몬순 상태를 같이 봐야 합니다.",
+    },
+    {
+      question: "가을 엘니뇨와 태풍·강수는 어떤가?",
+      answer: "가을 강수는 소우 쪽 신호가 있지만 태풍 경로 예외가 크다.",
+      evidence: `SON 엘니뇨 강수 평년비 ${format(
+        numeric(sonElNino?.precip_ratio_pct),
+        0,
+        "%",
+      )}, 다우 비율 ${format(numeric(sonElNino?.precip_wet_pct), 0, "%")}.`,
+      counter: "태풍 접근 또는 전선성 강수가 있으면 계절 평균과 다른 사례가 생김.",
+      confidence: "낮음",
+      wording:
+        "가을 엘니뇨는 평균적으로 소우 쪽을 시사하지만, 태풍 경로 하나로 결과가 뒤집힐 수 있어 개수보다 경로와 수증기 유입 시점을 봐야 합니다.",
+    },
+    {
+      question: "장마는 ONI로 설명할 수 있나?",
+      answer: "장마는 별도 보정 레이어로 다룬다.",
+      evidence: "ONI 월별 강수 표는 참고하되, 장마 시작·종료와 정체전선 위치 자료가 직접 근거.",
+      counter: "같은 ONI 위상에서도 6월과 7월 강수 신호가 달라질 수 있음.",
+      confidence: "낮음",
+      wording:
+        "장마는 ONI 하나로 설명하지 않습니다. 정체전선 위치, 북태평양고기압 가장자리, 저기압 통과, 수증기 유입을 함께 보겠습니다.",
+    },
+    {
+      question: "태풍은 엘니뇨 때 늘어나나?",
+      answer: "한반도 영향태풍은 개수보다 경로가 핵심이다.",
+      evidence: "기존 IBTrACS 유사해 표에서 한반도 500km 접근 수는 해마다 크게 달랐음.",
+      counter: "IBTrACS 거리 접근은 KMA 공식 영향태풍 판정을 대체하지 않음.",
+      confidence: "낮음",
+      wording:
+        "엘니뇨 여부보다 북서태평양 발생 위치, 북태평양고기압 가장자리, 중위도 기압골과의 상호작용이 한반도 영향 여부를 좌우합니다.",
+    },
+  ];
+
+  return [
+    "# ENSO 질문 대응 매트릭스",
+    "",
+    "- 기본 답변은 ONI 기준입니다.",
+    "- RONI는 보조 확인이며, 기본 답변의 주 근거로 쓰지 않습니다.",
+    "- 모든 문항은 근거와 반대근거를 함께 둡니다.",
+    "",
+    markdownTable(rows, [
+      { key: "question", label: "질문" },
+      { key: "answer", label: "짧은 답" },
+      { key: "evidence", label: "근거" },
+      { key: "counter", label: "반대근거/주의" },
+      { key: "confidence", label: "신뢰도" },
+      { key: "wording", label: "실무 답변문구" },
+    ]),
+  ].join("\n");
+}
+
+function buildChangmaTyphoonReference() {
+  const rows = [
+    {
+      topic: "장마 시작·종료",
+      oni_use: "ONI 월별 강수 신호는 참고자료",
+      primary_factors: "정체전선 위치, 북태평양고기압 가장자리, 상층 제트, 저기압 통과",
+      evidence:
+        "6월과 7월 엘니뇨 강수 신호가 서로 다를 수 있으므로 장마 시작·종료일 자체는 별도 자료가 필요",
+      caution: "ONI로 장마 시작일이나 종료일을 직접 판정하지 않음",
+      next_data: "KMA 장마 시작·종료 통계, 장마기간 강수량",
+    },
+    {
+      topic: "장마기간 강수량",
+      oni_use: "ONI 위상별 6~7월 강수 평년비를 보조로 사용",
+      primary_factors: "정체전선 체류, 하층 수증기 유입, 저기압 발달, 북태평양고기압 확장",
+      evidence:
+        "여름철 전체 강수 평년비와 특정 장마기간 강수는 다를 수 있음",
+      caution: "계절 누적 강수량과 집중호우 위험을 분리해서 설명",
+      next_data: "장마기간 일강수량, 극한강수일수, 지역별 장마 통계",
+    },
+    {
+      topic: "태풍 발생 수",
+      oni_use: "ONI는 서태평양 대류·발생 위치 배경을 보는 보조 인자",
+      primary_factors: "해수면온도, MJO/BSISO, 몬순골, 연직시어",
+      evidence:
+        "기존 유사해 표에서 서태평양 발생 수와 한반도 영향은 같은 방향으로 모이지 않음",
+      caution: "태풍 발생 수를 한반도 영향 위험으로 바로 바꾸지 않음",
+      next_data: "IBTrACS 발생수, KMA 태풍 발생·영향 통계",
+    },
+    {
+      topic: "한반도 영향태풍",
+      oni_use: "ONI 유사해의 태풍 접근 사례는 참고자료",
+      primary_factors: "북태평양고기압 가장자리, 중위도 기압골, 전선 위치, 태풍 구조와 진로",
+      evidence:
+        "현재 IBTrACS 500km 접근값은 거리 기반 참고값이며 KMA 공식 영향태풍 판정이 아님",
+      caution: "개수보다 경로와 수증기 유입 시점을 중심으로 설명",
+      next_data: "KMA 공식 영향태풍 목록, 진로별 강수·바람 피해 기록",
+    },
+    {
+      topic: "집중호우",
+      oni_use: "ONI 강수 신호가 약해도 위험은 유지",
+      primary_factors: "대기불안정, 하층 제트, 수증기 수송, 전선 정체, 태풍 원격 수증기",
+      evidence:
+        "계절 전체 강수량이 평년과 비슷하거나 적어도 짧은 기간의 큰비는 가능",
+      caution: "소우 전망을 집중호우 위험 낮음으로 해석하지 않음",
+      next_data: "일강수 극값, 3일 누적강수, 호우특보·피해 사례",
+    },
+  ];
+
+  return [
+    "# 장마·태풍 별도 해석 참고표",
+    "",
+    "- 장마와 태풍은 ONI 직접효과가 아니라 별도 보정 레이어입니다.",
+    "- 현재 체계에서는 ONI 월별·계절별 강수 표를 참고하되, 최종 설명은 정체전선, 북태평양고기압, 저기압, 태풍 경로를 함께 봅니다.",
+    "- IBTrACS 거리 접근값은 KMA 공식 영향태풍 판정을 대체하지 않습니다.",
+    "",
+    markdownTable(rows, [
+      { key: "topic", label: "항목" },
+      { key: "oni_use", label: "ONI 사용법" },
+      { key: "primary_factors", label: "주요 직접 인자" },
+      { key: "evidence", label: "현재 근거" },
+      { key: "caution", label: "주의" },
+      { key: "next_data", label: "보강 자료" },
+    ]),
+  ].join("\n");
+}
+
+function buildResponseSystemIndex() {
+  const rows = [
+    {
+      file: "evidence_registry.md",
+      purpose: "ONI, RONI, 남한 자료, AO/NAO, 해빙, 유라시아 눈덮임의 적용 규칙",
+      use: "자료 기준을 설명할 때 먼저 확인",
+    },
+    {
+      file: "monthly_effect_table.md",
+      purpose: "ONI 위상별 1~12월 기온·강수 영향표",
+      use: "월별 질문 대응",
+    },
+    {
+      file: "seasonal_effect_table.md",
+      purpose: "ONI 위상별 DJF/MAM/JJA/SON 기온·강수 영향표",
+      use: "계절 전망 질문 대응",
+    },
+    {
+      file: "climate_factor_modifier_table.md",
+      purpose: "AO, NAO, 해빙, 유라시아 눈덮임으로 ONI 결론을 보정",
+      use: "유사해 우선순위와 반대근거 확인",
+    },
+    {
+      file: "analog_year_cards.md",
+      purpose: "ONI 중심 유사해와 RONI 보조 사례",
+      use: "과거 유사해 질문 대응",
+    },
+    {
+      file: "changma_typhoon_reference.md",
+      purpose: "장마·태풍을 ONI 직접효과와 분리하는 해석표",
+      use: "장마, 집중호우, 태풍 질문 대응",
+    },
+    {
+      file: "question_answer_matrix.md",
+      purpose: "실제 질문별 짧은 답, 근거, 반대근거, 실무 문구",
+      use: "대외·내부 Q&A 초안",
+    },
+  ];
+
+  return [
+    "# ENSO 대응 체계 산출물 안내",
+    "",
+    "- 기본 지표는 ONI입니다.",
+    "- RONI는 보조 확인으로만 사용합니다.",
+    "- 남한 기온·강수는 기존 1991~2020 평년 및 기존 대표지점 적용값을 그대로 사용합니다.",
+    "- 기온·강수 판단에는 기관 공식 전망이나 확률전망을 사용하지 않습니다.",
+    "- 티벳 눈덮임은 현재 범위에서 제외했습니다.",
+    "",
+    markdownTable(rows, [
+      { key: "file", label: "파일" },
+      { key: "purpose", label: "내용" },
+      { key: "use", label: "사용 시점" },
+    ]),
+    "",
+    "## 재생성",
+    "",
+    "```bash",
+    "npm run build:enso-response",
+    "```",
+  ].join("\n");
+}
+
+export function buildResponseDocuments({
+  monthRows,
+  seasonRows,
+  analogRows = [],
+  currentContextText = "",
+  stationPolicy = DEFAULT_STATION_POLICY,
+}) {
+  return {
+    "evidence_registry.md": `${buildEvidenceRegistry(stationPolicy)}\n`,
+    "monthly_effect_table.md": `${buildMonthlyEffectTable(monthRows)}\n`,
+    "seasonal_effect_table.md": `${buildSeasonalEffectTable(seasonRows)}\n`,
+    "climate_factor_modifier_table.md": `${buildClimateFactorModifierTable(
+      currentContextText,
+      analogRows,
+    )}\n`,
+    "analog_year_cards.md": `${buildAnalogYearCards(analogRows)}\n`,
+    "changma_typhoon_reference.md": `${buildChangmaTyphoonReference()}\n`,
+    "question_answer_matrix.md": `${buildQuestionAnswerMatrix(monthRows, seasonRows)}\n`,
+    "response_system_index.md": `${buildResponseSystemIndex()}\n`,
+  };
+}
+
+export function buildCombinedResponseSystem(documents, { exampleResponse = "" } = {}) {
+  const quickUseRows = [
+    {
+      situation: "엘니뇨가 발달하면 여름에 비가 많은가?",
+      section: "ENSO 질문 대응 매트릭스, ONI 기준 월별 기온·강수 영향표",
+    },
+    {
+      situation: "폭염 가능성을 ONI로 설명할 수 있는가?",
+      section: "ENSO 질문 대응 매트릭스, ONI 기준 계절별 기온·강수 영향표",
+    },
+    {
+      situation: "과거 유사해에는 어떤 일이 있었는가?",
+      section: "ONI 중심 유사해 카드, ONI 해석 보정용 기후인자 표",
+    },
+    {
+      situation: "장마·태풍 질문에 어떻게 답할 것인가?",
+      section: "장마·태풍 별도 해석 참고표",
+    },
+  ];
+
+  const sections = COMBINED_DOCUMENT_ORDER.map((fileName) => {
+    const content = documents[fileName];
+    if (!content) {
+      return "";
+    }
+    return [`<!-- source: ${fileName} -->`, demoteMarkdownHeadings(content)].join("\n\n");
+  }).filter(Boolean);
+
+  return [
+    "# ENSO 한반도 영향 대응체계 종합본",
+    "",
+    "- 이 파일 하나만 보면 됩니다.",
+    "- 기본 ENSO 지표는 ONI입니다. RONI는 보조 민감도 확인으로만 사용합니다.",
+    "- 남한 기온·강수는 기존 62개 지점 남한 평균자료 체계를 사용하며, 1973~1989년은 제주 제외 본토 56개 대표지점, 1990년 이후는 제주 제외 본토 62개 대표지점, 평년은 1991~2020 고정 평년입니다.",
+    "- 기온·강수량 판단에는 KMA 등 기관의 공식 전망, 3개월전망, 계절전망 확률을 사용하지 않고 실제 관측자료와 관측 기반 유사해만 사용합니다.",
+    "- AO, NAO, 북극·바렌츠·카라 해빙, 유라시아 눈덮임은 ONI 결론의 강도와 유사해 우선순위를 보정하는 보조 인자입니다.",
+    "- 티벳 눈덮임은 현재 대응체계에서 제외했습니다.",
+    "- 세부 원본 파일은 `Korea_Observation_Data/data/output/final/enso_response_system/`에 보관됩니다.",
+    "",
+    "## 빠른 사용법",
+    "",
+    markdownTable(quickUseRows, [
+      { key: "situation", label: "질문 상황" },
+      { key: "section", label: "우선 확인할 절" },
+    ]),
+    "",
+    "## 재생성",
+    "",
+    "```bash",
+    "cd Korea_Observation_Data",
+    "npm run build:enso-response",
+    "```",
+    "",
+    exampleResponse.trim(),
+    "",
+    "---",
+    "",
+    ...sections.map((section, index) =>
+      index === sections.length - 1 ? section : `${section}\n\n---`,
+    ),
+    "",
+  ].join("\n");
+}
+
+async function readOptionalText(filePath) {
+  try {
+    return await readFile(filePath, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return "";
+    }
+    throw error;
+  }
+}
+
+export async function buildResponseSystem({
+  baseDir = ".",
+  outputDir = "data/output/final/enso_response_system",
+  combinedOutputPath = "ENSO_RESPONSE_SYSTEM.md",
+  stationPolicy = DEFAULT_STATION_POLICY,
+} = {}) {
+  const absoluteBase = resolve(baseDir);
+  const monthRows = await readCsv(
+    resolve(absoluteBase, "data/output/final/enso_analysis/enso_month_phase_summary.md"),
+  );
+  const seasonRows = await readCsv(
+    resolve(absoluteBase, "data/output/final/enso_analysis/enso_season_phase_summary.md"),
+  );
+  const analogRows = await readCsv(
+    resolve(absoluteBase, "data/output/final/elnino_summer_2026/analog_year_metrics.csv"),
+  );
+  const currentContextText = await readOptionalText(
+    resolve(absoluteBase, "data/output/final/elnino_summer_2026/2026_summer_el_nino_transition_brief.md"),
+  );
+  const extraContextText = await readOptionalText(
+    resolve(absoluteBase, "data/output/final/summer_outlook/current_sst_cryosphere_ao_analog_reference_2026.md"),
+  );
+
+  const documents = buildResponseDocuments({
+    monthRows,
+    seasonRows,
+    analogRows,
+    currentContextText: `${currentContextText}\n${extraContextText}`,
+    stationPolicy,
+  });
+  const exampleResponse = buildExampleScenarioResponse(monthRows, seasonRows, analogRows);
+
+  const absoluteOutput = resolve(absoluteBase, outputDir);
+  await mkdir(absoluteOutput, { recursive: true });
+  for (const [fileName, content] of Object.entries(documents)) {
+    await writeFile(resolve(absoluteOutput, fileName), content, "utf8");
+  }
+
+  const combinedFile = resolve(absoluteBase, combinedOutputPath);
+  await mkdir(dirname(combinedFile), { recursive: true });
+  await writeFile(combinedFile, buildCombinedResponseSystem(documents, { exampleResponse }), "utf8");
+
+  return {
+    outputDir: absoluteOutput,
+    files: Object.keys(documents).map((fileName) => resolve(absoluteOutput, fileName)),
+    combinedFile,
+  };
+}
